@@ -202,6 +202,14 @@ h1, h2, h3 {
 }
 .nav-links a:hover { color: var(--blue); background: var(--blue-50); }
 .nav-actions { display: flex; gap: 8px; align-items: center; }
+.nav-mobile-actions {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
 .nav-hamburger {
   display: none;
   flex-direction: column;
@@ -900,8 +908,9 @@ h1, h2, h3 {
     border-bottom: 1px solid var(--border);
     box-shadow: var(--shadow-lg);
   }
+  .nav-links.open .nav-mobile-actions { display: flex; }
   .nav .container { position: relative; }
-  .nav-actions .btn-ghost { display: none; }
+  .nav-actions { display: none; }
   .nav-hamburger { display: flex; margin-left: auto; }
 
   .hero          { padding: 80px 0 64px; }

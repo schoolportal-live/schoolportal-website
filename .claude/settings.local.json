@@ -4,7 +4,15 @@
       "Bash(find /d/SchoolPortal -not -path */node_modules/* -type d)",
       "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\")",
       "Bash(gh --version)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(gh repo:*)",
+      "WebFetch(domain:dnschecker.org)",
+      "WebFetch(domain:schoolportal.live)",
+      "Bash(nslookup schoolportal.live)",
+      "WebFetch(domain:schoolportal-live.netlify.app)",
+      "Bash(nslookup schoolportal.live 8.8.8.8)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm run:*)"
     ]
   }
 }
