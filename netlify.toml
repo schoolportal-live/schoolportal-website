@@ -1,0 +1,30 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Clean URL: /login → /login.html
+[[redirects]]
+  from = "/login"
+  to   = "/login.html"
+  status = 200
+
+# Custom 404
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 404
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+
+# NOTE: After deploying, configure form email notifications in the Netlify
+# dashboard under: Site → Forms → Notifications → Email Notification
+# Email: founders.space.ai@gmail.com
+# Apply to both "contact" and "demo-booking" forms.
