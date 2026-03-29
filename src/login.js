@@ -57,6 +57,7 @@ if (showPassBtn && passwordInput && eyeIcon) {
 // ── Form Submit (UI feedback only) ─────────────────────────────────────────
 const loginForm   = document.getElementById('login-form')
 const loginSubmit = document.getElementById('login-submit')
+const loginNotice = document.getElementById('login-inline-notice')
 
 if (loginForm && loginSubmit) {
   loginForm.addEventListener('submit', (e) => {
@@ -68,7 +69,10 @@ if (loginForm && loginSubmit) {
     setTimeout(() => {
       loginSubmit.disabled = false
       loginSubmit.textContent = 'Sign In →'
-      alert('Authentication is not yet configured. Book a demo to get early access!')
+      if (loginNotice) {
+        loginNotice.classList.add('visible')
+        loginNotice.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
     }, 1200)
   })
 }

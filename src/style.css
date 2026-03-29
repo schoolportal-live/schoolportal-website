@@ -863,6 +863,23 @@ h1, h2, h3 {
   height: 1px;
   background: var(--border);
 }
+.login-inline-notice {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--blue-50);
+  border: 1.5px solid var(--blue-100);
+  color: var(--blue-dark);
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.login-inline-notice.visible { display: flex; }
+.login-inline-notice svg { color: var(--blue); flex-shrink: 0; }
+.login-inline-notice a { color: var(--blue); font-weight: 700; text-decoration: underline; }
 .login-notice {
   text-align: center;
   font-size: 14px;
