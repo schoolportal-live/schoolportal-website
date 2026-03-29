@@ -5,10 +5,25 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Clean URL: /login → /login.html
+# Clean URLs for all pages
 [[redirects]]
   from = "/login"
   to   = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/reset-password"
+  to   = "/reset-password.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/dashboard"
+  to   = "/admin/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/parent/portal"
+  to   = "/parent/portal.html"
   status = 200
 
 # Custom 404
@@ -24,7 +39,5 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy        = "strict-origin-when-cross-origin"
 
-# NOTE: After deploying, configure form email notifications in the Netlify
-# dashboard under: Site → Forms → Notifications → Email Notification
-# Email: founders.space.ai@gmail.com
-# Apply to both "contact" and "demo-booking" forms.
+# NOTE: Form email notifications configured in Netlify dashboard
+# Email: founders.space.ai@gmail.com for "contact" and "demo-booking" forms.

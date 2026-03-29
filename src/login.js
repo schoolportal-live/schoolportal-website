@@ -1,17 +1,25 @@
 /**
  * SchoolPortal — Login Page JS
- * Handles: role tab switching, show/hide password
- * Note: No auth logic yet — UI only.
+ * Handles: Firebase Auth login, role-based redirect,
+ *          tab switching, show/hide password
  */
+import { loginWithEmail } from './firebase/auth.js'
+import { getUserRole, ROLE_ROUTES } from './firebase/firestore.js'
+import { initGuard } from './firebase/guard.js'
 
-// ── Role Tabs ──────────────────────────────────────────────────────────────
-const tabs        = document.querySelectorAll('.login-tab')
-const emailInput  = document.getElementById('login-email')
+// ── Auth Guard: if already logged in, redirect to dashboard ───────────────
+initGuard({ requireAuth: false })
 
-const placeholders = {
-  school: 'you@school.edu',
-  parent: 'you@example.com',
-}
+// ── DOM References ────────────────────────────────────────────────────────
+const form       = document.getElementById('login-form')
+const emailInput = document.getElementById('login-email')
+const passInput  = document.getElementById('login-password')
+const submitBtn  = document.getElementById('login-submit')
+const authError  = document.getElementById('auth-error')
+
+// ── Role Tabs ─────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.login-tab')
+const placeholders = { school: 'you@school.edu', parent: 'you@example.com' }
 
 tabs.forEach((tab) => {
   tab.addEventListener('click', () => {
@@ -21,7 +29,6 @@ tabs.forEach((tab) => {
     })
     tab.classList.add('active')
     tab.setAttribute('aria-selected', 'true')
-
     const role = tab.dataset.role
     if (emailInput && placeholders[role]) {
       emailInput.placeholder = placeholders[role]
@@ -29,10 +36,9 @@ tabs.forEach((tab) => {
   })
 })
 
-// ── Show / Hide Password ───────────────────────────────────────────────────
+// ── Show / Hide Password ──────────────────────────────────────────────────
 const showPassBtn = document.getElementById('show-pass-btn')
-const passwordInput = document.getElementById('login-password')
-const eyeIcon = document.getElementById('eye-icon')
+const eyeIcon     = document.getElementById('eye-icon')
 
 const eyeOpen = `
   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -44,35 +50,82 @@ const eyeClosed = `
   <line x1="1" y1="1" x2="23" y2="23"/>
 `
 
-if (showPassBtn && passwordInput && eyeIcon) {
+if (showPassBtn && passInput && eyeIcon) {
   showPassBtn.addEventListener('click', () => {
-    const isPassword = passwordInput.type === 'password'
-    passwordInput.type = isPassword ? 'text' : 'password'
+    const isPassword = passInput.type === 'password'
+    passInput.type = isPassword ? 'text' : 'password'
     eyeIcon.innerHTML = isPassword ? eyeClosed : eyeOpen
     showPassBtn.setAttribute('aria-pressed', String(isPassword))
     showPassBtn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password')
   })
 }
 
-// ── Form Submit (UI feedback only) ─────────────────────────────────────────
-const loginForm   = document.getElementById('login-form')
-const loginSubmit = document.getElementById('login-submit')
-const loginNotice = document.getElementById('login-inline-notice')
+// ── Error Display ─────────────────────────────────────────────────────────
+const ERROR_MESSAGES = {
+  'auth/user-not-found':          'No account found with this email address.',
+  'auth/wrong-password':          'Incorrect password. Please try again.',
+  'auth/invalid-credential':      'Invalid email or password. Please try again.',
+  'auth/invalid-email':           'Please enter a valid email address.',
+  'auth/too-many-requests':       'Too many attempts. Please wait a moment and try again.',
+  'auth/user-disabled':           'This account has been disabled. Contact your school admin.',
+  'auth/network-request-failed':  'Network error. Check your connection and try again.',
+}
 
-if (loginForm && loginSubmit) {
-  loginForm.addEventListener('submit', (e) => {
+function showAuthError(errorCode) {
+  const message = ERROR_MESSAGES[errorCode] || 'Something went wrong. Please try again.'
+  authError.textContent = message
+  authError.classList.add('visible')
+}
+
+function hideAuthError() {
+  authError.classList.remove('visible')
+  authError.textContent = ''
+}
+
+function setLoading(loading) {
+  submitBtn.disabled = loading
+  submitBtn.textContent = loading ? 'Signing in…' : 'Sign In →'
+}
+
+// ── Form Submit — Firebase Auth Login ─────────────────────────────────────
+if (form && submitBtn) {
+  // Clear error when user starts typing
+  emailInput.addEventListener('input', hideAuthError)
+  passInput.addEventListener('input', hideAuthError)
+
+  form.addEventListener('submit', async (e) => {
     e.preventDefault()
-    loginSubmit.disabled = true
-    loginSubmit.textContent = 'Signing in…'
+    hideAuthError()
 
-    // Simulate — replace with real auth endpoint when ready
-    setTimeout(() => {
-      loginSubmit.disabled = false
-      loginSubmit.textContent = 'Sign In →'
-      if (loginNotice) {
-        loginNotice.classList.add('visible')
-        loginNotice.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const email = emailInput.value.trim()
+    const password = passInput.value
+
+    if (!email) { showAuthError('auth/invalid-email'); return }
+    if (!password) { showAuthError('auth/wrong-password'); return }
+
+    setLoading(true)
+
+    try {
+      // 1. Sign in with Firebase Auth
+      const { user } = await loginWithEmail(email, password)
+
+      // 2. Fetch role from Firestore
+      const role = await getUserRole(user.uid)
+
+      // 3. Redirect to the correct dashboard
+      const destination = ROLE_ROUTES[role]
+      if (destination) {
+        window.location.replace(destination)
+      } else {
+        // User has no role doc — likely a new account not set up yet
+        showAuthError('no-role')
+        authError.textContent = 'Your account is not set up yet. Please contact your school administrator.'
+        setLoading(false)
       }
-    }, 1200)
+    } catch (err) {
+      console.error('Login error:', err)
+      showAuthError(err.code || 'unknown')
+      setLoading(false)
+    }
   })
 }

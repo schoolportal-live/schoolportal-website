@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users collection ──────────────────────────────────────────
+    // Doc ID = Firebase Auth UID
+    match /users/{userId} {
+      // Users can read their own document
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Users can create their own document at signup
+      // Role must be one of the allowed values
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.role in ['school_admin', 'parent']
+                    && request.resource.data.keys().hasAll(['role', 'email', 'displayName', 'createdAt']);
+
+      // Users can update their own doc but CANNOT change their role
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role;
+
+      // No client-side delete
+      allow delete: if false;
+    }
+
+    // ── Default deny all ──────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
