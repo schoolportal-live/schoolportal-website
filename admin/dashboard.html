@@ -42,6 +42,8 @@
     ═══════════════════════════════════════════ -->
     <main class="dash-main">
       <div class="container">
+
+        <!-- Header -->
         <div class="dash-header">
           <div>
             <h1>School Dashboard</h1>
@@ -49,24 +51,24 @@
           </div>
         </div>
 
+        <!-- ── Stats Cards ──────────────────────────── -->
         <div class="dash-grid">
-          <!-- Quick Stats -->
           <div class="dash-card">
             <div class="dash-card-icon blue">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <h3>Parents Connected</h3>
-            <p class="dash-stat-number">—</p>
-            <p class="dash-stat-label">Coming soon</p>
+            <p class="dash-stat-number" id="stat-parents">--</p>
+            <p class="dash-stat-label">registered parents</p>
           </div>
 
           <div class="dash-card">
             <div class="dash-card-icon green">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
-            <h3>Announcements Sent</h3>
-            <p class="dash-stat-number">—</p>
-            <p class="dash-stat-label">Coming soon</p>
+            <h3>Notices Sent</h3>
+            <p class="dash-stat-number" id="stat-notices">--</p>
+            <p class="dash-stat-label">announcements</p>
           </div>
 
           <div class="dash-card">
@@ -74,8 +76,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
             <h3>Upcoming Events</h3>
-            <p class="dash-stat-number">—</p>
-            <p class="dash-stat-label">Coming soon</p>
+            <p class="dash-stat-number">--</p>
+            <p class="dash-stat-label">coming soon</p>
           </div>
 
           <div class="dash-card">
@@ -83,25 +85,156 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
             <h3>Form Submissions</h3>
-            <p class="dash-stat-number">—</p>
-            <p class="dash-stat-label">Coming soon</p>
+            <p class="dash-stat-number" id="stat-submissions">--</p>
+            <p class="dash-stat-label">received</p>
           </div>
         </div>
 
-        <!-- Placeholder sections for future features -->
-        <div class="dash-section">
-          <h2>Quick Actions</h2>
-          <div class="dash-actions">
-            <button class="btn btn-primary" disabled>Send Announcement</button>
-            <button class="btn btn-secondary" disabled>Create Event</button>
-            <button class="btn btn-ghost" disabled>Manage Parents</button>
+        <!-- ── Tab Navigation ──────────────────────── -->
+        <div class="dash-tabs">
+          <button class="dash-tab active" data-tab="notices">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Notices
+          </button>
+          <button class="dash-tab" data-tab="parents">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Parents
+          </button>
+          <button class="dash-tab" data-tab="submissions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Submissions
+          </button>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB: NOTICES
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content active" id="tab-notices">
+
+          <!-- Send Notice Form -->
+          <div class="dash-section">
+            <h2>Send Notice</h2>
+            <form id="notice-form" class="dash-form">
+              <div class="form-group">
+                <label for="notice-title">Title</label>
+                <input type="text" id="notice-title" placeholder="e.g. School Closed on Monday" required />
+              </div>
+              <div class="form-group">
+                <label for="notice-body">Message</label>
+                <textarea id="notice-body" rows="4" placeholder="Write your announcement here..." required></textarea>
+              </div>
+              <div class="form-group">
+                <label for="notice-priority">Priority</label>
+                <select id="notice-priority">
+                  <option value="normal">Normal</option>
+                  <option value="important">Important</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div class="dash-form-actions">
+                <button type="submit" class="btn btn-primary" id="notice-submit-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Send to All Parents
+                </button>
+                <span class="dash-form-status" id="notice-status"></span>
+              </div>
+            </form>
           </div>
-          <p class="dash-coming-soon">These features are being built. They'll be live in the next update.</p>
+
+          <!-- Notice History -->
+          <div class="dash-section" style="margin-top: 24px;">
+            <h2>Recent Notices</h2>
+            <div id="notices-list" class="dash-list">
+              <div class="dash-list-empty">
+                <p>Loading notices...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB: PARENTS
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content" id="tab-parents">
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <h2>Registered Parents</h2>
+              <button class="btn btn-primary btn-sm" id="add-parent-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Parent
+              </button>
+            </div>
+
+            <!-- Add Parent Form (hidden by default) -->
+            <div class="dash-inline-form hidden" id="add-parent-form">
+              <h3>Add New Parent</h3>
+              <form id="parent-form">
+                <div class="dash-form-row">
+                  <div class="form-group">
+                    <label for="parent-name">Full Name</label>
+                    <input type="text" id="parent-name" placeholder="e.g. John Smith" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="parent-email">Email Address</label>
+                    <input type="email" id="parent-email" placeholder="e.g. john@example.com" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="parent-password">Temporary Password</label>
+                    <input type="text" id="parent-password" placeholder="Min 6 characters" required minlength="6" />
+                  </div>
+                </div>
+                <div class="dash-form-actions">
+                  <button type="submit" class="btn btn-primary btn-sm" id="parent-submit-btn">Create Account</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="cancel-parent-btn">Cancel</button>
+                  <span class="dash-form-status" id="parent-status"></span>
+                </div>
+              </form>
+            </div>
+
+            <div id="parents-list" class="dash-list">
+              <div class="dash-list-empty">
+                <p>Loading parents...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB: SUBMISSIONS
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content" id="tab-submissions">
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <h2>Form Submissions</h2>
+              <div class="dash-filter-tabs">
+                <button class="dash-filter active" data-filter="all">All</button>
+                <button class="dash-filter" data-filter="demo-booking">Demo Bookings</button>
+                <button class="dash-filter" data-filter="contact">Contact Messages</button>
+              </div>
+            </div>
+            <div id="submissions-list" class="dash-list">
+              <div class="dash-list-empty">
+                <p>Loading submissions...</p>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
     </main>
 
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay hidden" id="confirm-modal">
+    <div class="modal-card">
+      <h3 id="modal-title">Confirm Delete</h3>
+      <p id="modal-message">Are you sure you want to delete this item?</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" id="modal-cancel">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="modal-confirm">Delete</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/src/admin/dashboard.js"></script>

@@ -1,7 +1,9 @@
 /**
  * SchoolPortal — Landing Page JS
  * Handles: mobile nav, Netlify form submissions, smooth scroll
+ * Also saves form submissions to Firestore so admin dashboard can view them.
  */
+import { saveSubmission } from './firebase/firestore.js'
 
 // ── Mobile Nav ─────────────────────────────────────────────────────────────
 const hamburger = document.getElementById('nav-hamburger')
@@ -132,6 +134,9 @@ if (demoForm && demoSubmit) {
     setLoading(demoSubmit, true)
     try {
       await submitToNetlify(demoForm)
+      // Also save to Firestore for admin dashboard
+      const formData = Object.fromEntries(new FormData(demoForm).entries())
+      saveSubmission({ formType: 'demo-booking', data: formData }).catch(() => {})
       showSuccess(demoForm, 'demo-success')
     } catch {
       setLoading(demoSubmit, false)
@@ -177,6 +182,9 @@ if (contactForm && contactSubmit) {
     setLoading(contactSubmit, true)
     try {
       await submitToNetlify(contactForm)
+      // Also save to Firestore for admin dashboard
+      const formData = Object.fromEntries(new FormData(contactForm).entries())
+      saveSubmission({ formType: 'contact', data: formData }).catch(() => {})
       showSuccess(contactForm, 'contact-success')
     } catch {
       setLoading(contactSubmit, false)
