@@ -16,6 +16,9 @@ import {
   getParentsBySchool, getSchoolStats,
   createUserDoc,
   getSubmissions,
+  getSchoolParentForms, updateParentFormStatus,
+  getSchoolMessages, markMessageRead,
+  createEvent, getEvents, deleteEvent,
 } from '../firebase/firestore.js'
 
 // ── Auth Guard ───────────────────────────────────────────────────────────
@@ -258,7 +261,7 @@ async function loadParents() {
 //   FEATURE 3: SUBMISSIONS
 // ══════════════════════════════════════════════════════════════════════════
 const submissionsList = document.getElementById('submissions-list')
-const filterBtns = document.querySelectorAll('.dash-filter')
+const filterBtns = document.querySelectorAll('[data-filter]')
 let allSubmissions = []
 let currentFilter = 'all'
 
@@ -386,6 +389,205 @@ modal.addEventListener('click', (e) => {
 })
 
 // ══════════════════════════════════════════════════════════════════════════
+//   FEATURE 5: PARENT FORMS (Absence / Permission)
+// ══════════════════════════════════════════════════════════════════════════
+const parentFormsList = document.getElementById('parent-forms-list')
+const pfFilterBtns = document.querySelectorAll('[data-pf-filter]')
+let allParentForms = []
+let currentPfFilter = 'all'
+
+pfFilterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    pfFilterBtns.forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    currentPfFilter = btn.dataset.pfFilter
+    renderParentForms()
+  })
+})
+
+async function loadParentForms() {
+  try {
+    allParentForms = await getSchoolParentForms(schoolId)
+    renderParentForms()
+  } catch (err) {
+    console.error('Failed to load parent forms:', err)
+    parentFormsList.innerHTML = '<div class="dash-list-empty"><p>Failed to load parent forms.</p></div>'
+  }
+}
+
+function renderParentForms() {
+  const filtered = currentPfFilter === 'all'
+    ? allParentForms
+    : allParentForms.filter(f => f.formType === currentPfFilter)
+
+  if (filtered.length === 0) {
+    parentFormsList.innerHTML = '<div class="dash-list-empty"><p>No parent forms received yet.</p></div>'
+    return
+  }
+
+  parentFormsList.innerHTML = filtered.map(f => {
+    const date = f.createdAt?.toDate?.() ? formatDate(f.createdAt.toDate()) : 'Unknown'
+    const typeLabel = f.formType === 'absence' ? 'Absence' : 'Permission'
+    const typeBadge = f.formType === 'absence' ? 'blue' : 'green'
+    const statusBadge = f.status === 'pending' ? 'status-pending'
+      : f.status === 'acknowledged' ? 'status-ack' : 'status-approved'
+    const d = f.data || {}
+    const detail = f.formType === 'absence'
+      ? `${escHtml(d.dateFrom)} to ${escHtml(d.dateTo)} — ${escHtml(d.reason)}`
+      : `${escHtml(d.permissionType)} on ${escHtml(d.date)} — ${escHtml(d.details)}`
+
+    return `
+      <div class="dash-list-item">
+        <div class="dash-list-item-main">
+          <div class="dash-list-item-header">
+            <h4>${escHtml(f.parentName)} — ${escHtml(d.childName || '')}</h4>
+            <span class="dash-type-badge ${typeBadge}">${typeLabel}</span>
+            <span class="dash-status-badge ${statusBadge}">${f.status}</span>
+          </div>
+          <p class="dash-list-item-body">${detail}</p>
+          <span class="dash-list-item-meta">${date}</span>
+        </div>
+        ${f.status === 'pending' ? `
+          <button class="btn btn-primary btn-sm" data-ack-form="${f.id}" title="Acknowledge">Acknowledge</button>
+        ` : ''}
+      </div>`
+  }).join('')
+
+  // Acknowledge handlers
+  parentFormsList.querySelectorAll('[data-ack-form]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true
+      btn.textContent = '...'
+      await updateParentFormStatus(btn.dataset.ackForm, 'acknowledged')
+      await loadParentForms()
+    })
+  })
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//   FEATURE 6: MESSAGES FROM PARENTS
+// ══════════════════════════════════════════════════════════════════════════
+const adminMessagesList = document.getElementById('admin-messages-list')
+
+async function loadAdminMessages() {
+  try {
+    const msgs = await getSchoolMessages(schoolId)
+    if (msgs.length === 0) {
+      adminMessagesList.innerHTML = '<div class="dash-list-empty"><p>No messages received from parents yet.</p></div>'
+      return
+    }
+    adminMessagesList.innerHTML = msgs.map(m => {
+      const date = m.createdAt?.toDate?.() ? formatDate(m.createdAt.toDate()) : 'Unknown'
+      return `
+        <div class="dash-list-item ${m.read ? '' : 'priority-important'}">
+          <div class="dash-list-item-main">
+            <div class="dash-list-item-header">
+              <h4>${escHtml(m.subject)}</h4>
+              <span class="dash-type-badge ${m.read ? 'green' : 'blue'}">${m.read ? 'Read' : 'New'}</span>
+            </div>
+            <p class="dash-list-item-body">${escHtml(m.body)}</p>
+            <span class="dash-list-item-meta">From ${escHtml(m.senderName)} &middot; ${date}</span>
+          </div>
+          ${!m.read ? `<button class="btn btn-ghost btn-sm" data-read-msg="${m.id}">Mark Read</button>` : ''}
+        </div>`
+    }).join('')
+
+    adminMessagesList.querySelectorAll('[data-read-msg]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true
+        btn.textContent = '...'
+        await markMessageRead(btn.dataset.readMsg)
+        await loadAdminMessages()
+      })
+    })
+  } catch (err) {
+    console.error('Failed to load messages:', err)
+    adminMessagesList.innerHTML = '<div class="dash-list-empty"><p>Failed to load messages.</p></div>'
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//   FEATURE 7: EVENTS MANAGEMENT
+// ══════════════════════════════════════════════════════════════════════════
+const eventForm = document.getElementById('event-form')
+const adminEventsList = document.getElementById('admin-events-list')
+
+eventForm.addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const status = document.getElementById('event-status')
+  const btn = eventForm.querySelector('button[type="submit"]')
+  btn.disabled = true
+  status.textContent = 'Creating...'
+  status.className = 'dash-form-status sending'
+
+  try {
+    await createEvent({
+      title: document.getElementById('event-title').value.trim(),
+      description: document.getElementById('event-desc').value.trim(),
+      date: document.getElementById('event-date').value,
+      time: document.getElementById('event-time').value,
+      location: document.getElementById('event-location').value.trim(),
+      schoolId,
+    })
+    eventForm.reset()
+    status.textContent = 'Event created!'
+    status.className = 'dash-form-status success'
+    await loadAdminEvents()
+    setTimeout(() => { status.textContent = ''; status.className = 'dash-form-status'; }, 3000)
+  } catch (err) {
+    console.error('Failed to create event:', err)
+    status.textContent = 'Failed to create event.'
+    status.className = 'dash-form-status error'
+  } finally {
+    btn.disabled = false
+  }
+})
+
+async function loadAdminEvents() {
+  try {
+    const events = await getEvents(schoolId)
+    if (events.length === 0) {
+      adminEventsList.innerHTML = '<div class="dash-list-empty"><p>No events created yet. Use the form above to create one.</p></div>'
+      return
+    }
+    adminEventsList.innerHTML = events.map(ev => {
+      const evDate = new Date(ev.date)
+      const dateStr = evDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+      return `
+        <div class="dash-list-item">
+          <div class="event-date-badge">
+            <span class="event-month">${evDate.toLocaleDateString('en-US', { month: 'short' })}</span>
+            <span class="event-day">${evDate.getDate()}</span>
+          </div>
+          <div class="dash-list-item-main">
+            <div class="dash-list-item-header">
+              <h4>${escHtml(ev.title)}</h4>
+            </div>
+            <span class="dash-list-item-meta">
+              ${dateStr}${ev.time ? ' at ' + escHtml(ev.time) : ''}${ev.location ? ' &middot; ' + escHtml(ev.location) : ''}
+            </span>
+          </div>
+          <button class="btn-icon danger" data-delete-event="${ev.id}" title="Delete event">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>`
+    }).join('')
+
+    adminEventsList.querySelectorAll('[data-delete-event]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showConfirmModal('Delete Event', 'Are you sure you want to delete this event?', async () => {
+          await deleteEvent(btn.dataset.deleteEvent)
+          await loadAdminEvents()
+        })
+      })
+    })
+  } catch (err) {
+    console.error('Failed to load events:', err)
+    adminEventsList.innerHTML = '<div class="dash-list-empty"><p>Failed to load events.</p></div>'
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 //   HELPERS
 // ══════════════════════════════════════════════════════════════════════════
 function escHtml(str) {
@@ -408,5 +610,8 @@ await Promise.all([
   loadNotices(),
   loadParents(),
   loadSubmissions(),
+  loadParentForms(),
+  loadAdminMessages(),
+  loadAdminEvents(),
   loadStats(),
 ])

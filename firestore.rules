@@ -2,71 +2,116 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helper: get user role ────────────────────────────────────────
+    // ── Helpers ──────────────────────────────────────────────────────
     function userRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
-
     function userSchool() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
     }
 
-    // ── Users collection ──────────────────────────────────────────
+    // ── Users ────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Admins can read all users in their school; users can read own doc
       allow read: if request.auth != null
                   && (request.auth.uid == userId
                       || userRole() == 'school_admin');
 
-      // Users can create their own document at signup
       allow create: if request.auth != null
                     && request.auth.uid == userId
                     && request.resource.data.role in ['school_admin', 'parent']
                     && request.resource.data.keys().hasAll(['role', 'email', 'displayName', 'createdAt']);
 
-      // Users can update their own doc but CANNOT change their role
       allow update: if request.auth != null
                     && request.auth.uid == userId
                     && request.resource.data.role == resource.data.role;
 
-      // Only admins can delete parent users (from same school)
       allow delete: if request.auth != null
                     && userRole() == 'school_admin'
                     && resource.data.role == 'parent';
     }
 
-    // ── Notices collection ────────────────────────────────────────
+    // ── Notices ──────────────────────────────────────────────────────
     match /notices/{noticeId} {
-      // Anyone authenticated in the same school can read notices
       allow read: if request.auth != null
                   && resource.data.schoolId == userSchool();
 
-      // Only school_admin can create notices
       allow create: if request.auth != null
                     && userRole() == 'school_admin'
                     && request.resource.data.schoolId == userSchool()
                     && request.resource.data.keys().hasAll(['title', 'body', 'authorId', 'schoolId', 'createdAt']);
 
-      // Only school_admin can update/delete notices in their school
       allow update, delete: if request.auth != null
                             && userRole() == 'school_admin'
                             && resource.data.schoolId == userSchool();
     }
 
-    // ── Submissions collection ────────────────────────────────────
+    // ── Submissions (public landing page forms) ──────────────────────
     match /submissions/{subId} {
-      // Admins can read all submissions
       allow read: if request.auth != null
                   && userRole() == 'school_admin';
-
-      // Anyone can create a submission (public forms)
       allow create: if true;
-
-      // No client-side update/delete
       allow update, delete: if false;
     }
 
-    // ── Default deny all ──────────────────────────────────────────
+    // ── Parent Forms (absence, permission notes) ─────────────────────
+    match /parentForms/{formId} {
+      // Parents can read their own forms; admins can read all in their school
+      allow read: if request.auth != null
+                  && (resource.data.parentId == request.auth.uid
+                      || (userRole() == 'school_admin' && resource.data.schoolId == userSchool()));
+
+      // Parents can create forms for themselves
+      allow create: if request.auth != null
+                    && request.resource.data.parentId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['formType', 'parentId', 'parentName', 'schoolId', 'data', 'status', 'createdAt']);
+
+      // Admins can update status (acknowledge/approve/deny)
+      allow update: if request.auth != null
+                    && userRole() == 'school_admin'
+                    && resource.data.schoolId == userSchool();
+
+      allow delete: if false;
+    }
+
+    // ── Messages ─────────────────────────────────────────────────────
+    match /messages/{messageId} {
+      // Users can read messages they sent or that are in their school (admin)
+      allow read: if request.auth != null
+                  && (resource.data.senderId == request.auth.uid
+                      || resource.data.recipientId == request.auth.uid
+                      || (userRole() == 'school_admin' && resource.data.schoolId == userSchool()));
+
+      // Any authenticated user in the school can send messages
+      allow create: if request.auth != null
+                    && request.resource.data.senderId == request.auth.uid
+                    && request.resource.data.schoolId == userSchool()
+                    && request.resource.data.keys().hasAll(['senderId', 'senderName', 'senderRole', 'schoolId', 'subject', 'body', 'createdAt']);
+
+      // Allow marking as read
+      allow update: if request.auth != null
+                    && (resource.data.recipientId == request.auth.uid
+                        || (userRole() == 'school_admin' && resource.data.schoolId == userSchool()));
+
+      allow delete: if false;
+    }
+
+    // ── Events ───────────────────────────────────────────────────────
+    match /events/{eventId} {
+      // Anyone in the school can read events
+      allow read: if request.auth != null
+                  && resource.data.schoolId == userSchool();
+
+      // Only admin can create/update/delete events
+      allow create: if request.auth != null
+                    && userRole() == 'school_admin'
+                    && request.resource.data.schoolId == userSchool();
+
+      allow update, delete: if request.auth != null
+                            && userRole() == 'school_admin'
+                            && resource.data.schoolId == userSchool();
+    }
+
+    // ── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }

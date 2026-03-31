@@ -49,34 +49,239 @@
           </div>
         </div>
 
-        <!-- Notices Section -->
-        <div class="dash-section">
-          <h2>School Notices</h2>
-          <div id="notices-list" class="dash-list">
-            <div class="dash-list-empty">
-              <p>Loading notices...</p>
+        <!-- ── Tab Navigation ──────────────────────── -->
+        <div class="dash-tabs">
+          <button class="dash-tab active" data-tab="notices">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Notices
+          </button>
+          <button class="dash-tab" data-tab="forms">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Forms
+          </button>
+          <button class="dash-tab" data-tab="messages">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Messages
+          </button>
+          <button class="dash-tab" data-tab="events">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Events
+          </button>
+          <button class="dash-tab" data-tab="profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Profile
+          </button>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB: NOTICES
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content active" id="tab-notices">
+          <div class="dash-section">
+            <h2>School Notices</h2>
+            <div id="notices-list" class="dash-list">
+              <div class="dash-list-empty"><p>Loading notices...</p></div>
             </div>
           </div>
         </div>
 
-        <!-- Other Cards (future features) -->
-        <div class="dash-grid" style="margin-top: 24px;">
-          <div class="dash-card">
-            <div class="dash-card-icon green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <!-- ═══════════════════════════════════════════
+             TAB: FORMS
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content" id="tab-forms">
+
+          <!-- Form Type Selection -->
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <h2>Submit a Form</h2>
+              <div class="dash-filter-tabs">
+                <button class="dash-filter active" data-form-type="absence">Report Absence</button>
+                <button class="dash-filter" data-form-type="permission">Permission Note</button>
+              </div>
             </div>
-            <h3>Upcoming Events</h3>
-            <p class="dash-stat-number">--</p>
-            <p class="dash-stat-label">Coming soon</p>
+
+            <!-- Absence Form -->
+            <form id="absence-form" class="dash-form">
+              <div class="dash-form-row-2">
+                <div class="form-group">
+                  <label for="absence-child">Child's Name</label>
+                  <input type="text" id="absence-child" placeholder="e.g. Sarah Smith" required />
+                </div>
+                <div class="form-group">
+                  <label for="absence-grade">Class / Grade</label>
+                  <input type="text" id="absence-grade" placeholder="e.g. Grade 5, Class B" required />
+                </div>
+              </div>
+              <div class="dash-form-row-2">
+                <div class="form-group">
+                  <label for="absence-date-from">Date From</label>
+                  <input type="date" id="absence-date-from" required />
+                </div>
+                <div class="form-group">
+                  <label for="absence-date-to">Date To</label>
+                  <input type="date" id="absence-date-to" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="absence-reason">Reason for Absence</label>
+                <textarea id="absence-reason" rows="3" placeholder="Please explain the reason..." required></textarea>
+              </div>
+              <div class="dash-form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Submit Absence Report
+                </button>
+                <span class="dash-form-status" id="absence-status"></span>
+              </div>
+            </form>
+
+            <!-- Permission Note Form -->
+            <form id="permission-form" class="dash-form hidden">
+              <div class="dash-form-row-2">
+                <div class="form-group">
+                  <label for="perm-child">Child's Name</label>
+                  <input type="text" id="perm-child" placeholder="e.g. Sarah Smith" required />
+                </div>
+                <div class="form-group">
+                  <label for="perm-grade">Class / Grade</label>
+                  <input type="text" id="perm-grade" placeholder="e.g. Grade 5, Class B" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="perm-date">Date</label>
+                <input type="date" id="perm-date" required />
+              </div>
+              <div class="form-group">
+                <label for="perm-type">Permission Type</label>
+                <select id="perm-type">
+                  <option value="early-pickup">Early Pickup</option>
+                  <option value="late-arrival">Late Arrival</option>
+                  <option value="field-trip">Field Trip Consent</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="perm-details">Details</label>
+                <textarea id="perm-details" rows="3" placeholder="Provide any additional details..." required></textarea>
+              </div>
+              <div class="dash-form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Submit Permission Note
+                </button>
+                <span class="dash-form-status" id="permission-status"></span>
+              </div>
+            </form>
           </div>
 
-          <div class="dash-card">
-            <div class="dash-card-icon blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <!-- Submitted Forms History -->
+          <div class="dash-section" style="margin-top: 24px;">
+            <h2>My Submissions</h2>
+            <div id="my-forms-list" class="dash-list">
+              <div class="dash-list-empty"><p>Loading your submissions...</p></div>
             </div>
-            <h3>Progress &amp; Grades</h3>
-            <p class="dash-stat-number">--</p>
-            <p class="dash-stat-label">Coming soon</p>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB: MESSAGES
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content" id="tab-messages">
+          <div class="dash-section">
+            <h2>Message School</h2>
+            <form id="message-form" class="dash-form">
+              <div class="form-group">
+                <label for="msg-subject">Subject</label>
+                <input type="text" id="msg-subject" placeholder="e.g. Question about homework" required />
+              </div>
+              <div class="form-group">
+                <label for="msg-body">Message</label>
+                <textarea id="msg-body" rows="5" placeholder="Write your message to the school..." required></textarea>
+              </div>
+              <div class="dash-form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Send Message
+                </button>
+                <span class="dash-form-status" id="message-status"></span>
+              </div>
+            </form>
+          </div>
+
+          <div class="dash-section" style="margin-top: 24px;">
+            <h2>Message History</h2>
+            <div id="messages-list" class="dash-list">
+              <div class="dash-list-empty"><p>Loading messages...</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB: EVENTS
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content" id="tab-events">
+          <div class="dash-section">
+            <h2>School Events &amp; Calendar</h2>
+            <div id="events-list" class="dash-list">
+              <div class="dash-list-empty"><p>Loading events...</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB: PROFILE
+        ═══════════════════════════════════════════ -->
+        <div class="dash-tab-content" id="tab-profile">
+          <div class="dash-section">
+            <h2>Profile Settings</h2>
+            <form id="profile-form" class="dash-form">
+              <div class="dash-form-row-2">
+                <div class="form-group">
+                  <label for="profile-name">Full Name</label>
+                  <input type="text" id="profile-name" required />
+                </div>
+                <div class="form-group">
+                  <label for="profile-email">Email Address</label>
+                  <input type="email" id="profile-email" disabled />
+                </div>
+              </div>
+              <div class="dash-form-row-2">
+                <div class="form-group">
+                  <label for="profile-phone">Phone Number</label>
+                  <input type="tel" id="profile-phone" placeholder="e.g. +1 (555) 123-4567" />
+                </div>
+                <div class="form-group">
+                  <label for="profile-school">School</label>
+                  <input type="text" id="profile-school" disabled />
+                </div>
+              </div>
+              <div class="dash-form-row-2">
+                <div class="form-group">
+                  <label for="profile-child-name">Child's Name</label>
+                  <input type="text" id="profile-child-name" placeholder="e.g. Sarah Smith" />
+                </div>
+                <div class="form-group">
+                  <label for="profile-child-grade">Child's Class / Grade</label>
+                  <input type="text" id="profile-child-grade" placeholder="e.g. Grade 5, Class B" />
+                </div>
+              </div>
+              <div class="dash-form-actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <span class="dash-form-status" id="profile-status"></span>
+              </div>
+            </form>
+          </div>
+
+          <div class="dash-section" style="margin-top: 24px;">
+            <h2>Account</h2>
+            <div class="profile-account-info">
+              <p>Signed in as <strong id="profile-email-display"></strong></p>
+              <p>Role: <span class="dash-nav-badge parent" style="display:inline-block;">Parent</span></p>
+              <p>Member since: <span id="profile-joined"></span></p>
+            </div>
+            <div style="margin-top: 20px;">
+              <a href="/reset-password.html" class="btn btn-ghost btn-sm">Change Password</a>
+            </div>
           </div>
         </div>
 
