@@ -16,15 +16,72 @@
   to   = "/reset-password.html"
   status = 200
 
+# New SchoolOS pages
 [[redirects]]
-  from = "/admin/dashboard"
-  to   = "/admin/dashboard.html"
+  from = "/school/dashboard"
+  to   = "/school/dashboard.html"
   status = 200
 
 [[redirects]]
-  from = "/parent/portal"
-  to   = "/parent/portal.html"
+  from = "/school/admin"
+  to   = "/school/admin.html"
   status = 200
+
+[[redirects]]
+  from = "/school/teacher"
+  to   = "/school/teacher.html"
+  status = 200
+
+[[redirects]]
+  from = "/school/linemanager"
+  to   = "/school/linemanager.html"
+  status = 200
+
+[[redirects]]
+  from = "/school/parent"
+  to   = "/school/parent.html"
+  status = 200
+
+[[redirects]]
+  from = "/school/student"
+  to   = "/school/student.html"
+  status = 200
+
+[[redirects]]
+  from = "/school/org-builder"
+  to   = "/school/org-builder.html"
+  status = 200
+
+[[redirects]]
+  from = "/school/timetable"
+  to   = "/school/timetable.html"
+  status = 200
+
+[[redirects]]
+  from = "/platform/dashboard"
+  to   = "/platform/dashboard.html"
+  status = 200
+
+# Legacy routes redirect to new dashboards
+[[redirects]]
+  from = "/admin/dashboard"
+  to   = "/school/dashboard.html"
+  status = 301
+
+[[redirects]]
+  from = "/admin/dashboard.html"
+  to   = "/school/dashboard.html"
+  status = 301
+
+[[redirects]]
+  from = "/parent/portal"
+  to   = "/school/parent.html"
+  status = 301
+
+[[redirects]]
+  from = "/parent/portal.html"
+  to   = "/school/parent.html"
+  status = 301
 
 # Custom 404
 [[redirects]]
