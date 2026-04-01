@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timetable Builder — SchoolOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="auth-loading">
+
+  <div class="auth-loader" id="auth-loader">
+    <div class="auth-loader-spinner"></div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- NAV -->
+    <nav class="dash-nav">
+      <div class="container">
+        <a href="/school/timetable.html" class="logo">
+          <span class="logo-mark" data-brand-logo>SP</span>
+          <span data-brand-name>SchoolPortal</span>
+        </a>
+        <span class="dash-nav-badge" id="role-badge" style="background:#e0e7ff;color:#3730a3;">Timetable</span>
+        <div style="flex:1;"></div>
+        <div class="dash-nav-user">
+          <span id="user-name"></span>
+          <button class="btn btn-ghost btn-sm" id="logout-btn">Log Out</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="dash-main">
+      <div class="container">
+
+        <div class="dash-header">
+          <div>
+            <h1 id="page-title">Timetable Builder</h1>
+            <p>Configure periods, breaks, and weekly schedule for each section.</p>
+          </div>
+        </div>
+
+        <!-- Section Selector -->
+        <div class="dash-form-row" style="margin-bottom:24px;">
+          <label for="section-select"><strong>Select Section:</strong></label>
+          <select id="section-select" class="dash-input" style="max-width:300px;">
+            <option value="">— Choose a section —</option>
+          </select>
+        </div>
+
+        <!-- Period Config -->
+        <div id="period-config" style="display:none;">
+          <div class="dash-card" style="margin-bottom:24px;">
+            <h3>Period Configuration</h3>
+            <div class="dash-form-row" style="gap:16px;flex-wrap:wrap;">
+              <div>
+                <label>Regular Periods</label>
+                <input type="number" id="period-count" class="dash-input" value="8" min="1" max="12" style="width:80px;">
+              </div>
+              <div>
+                <label>Period Duration (min)</label>
+                <input type="number" id="period-duration" class="dash-input" value="40" min="20" max="90" style="width:80px;">
+              </div>
+              <div>
+                <label>Start Time</label>
+                <input type="time" id="start-time" class="dash-input" value="08:00" style="width:120px;">
+              </div>
+              <div>
+                <label>Zero Periods</label>
+                <input type="number" id="zero-periods" class="dash-input" value="0" min="0" max="3" style="width:80px;">
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <h4>Breaks</h4>
+              <div id="breaks-list"></div>
+              <button class="btn btn-secondary btn-sm" id="add-break-btn">+ Add Break</button>
+            </div>
+            <div style="margin-top:16px;">
+              <button class="btn btn-primary" id="generate-grid-btn">Generate Grid</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timetable Grid -->
+        <div id="timetable-grid" style="display:none;">
+          <div class="dash-card">
+            <h3>Weekly Schedule</h3>
+            <div style="overflow-x:auto;">
+              <table class="dash-table" id="schedule-table"></table>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:12px;">
+              <button class="btn btn-primary" id="save-timetable-btn">Save Timetable</button>
+              <span id="save-status" class="dash-form-status"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conflict Warnings -->
+        <div id="conflict-warnings" class="dash-card" style="display:none;margin-top:16px;border-left:4px solid #f59e0b;">
+          <h3 style="color:#92400e;">Scheduling Conflicts</h3>
+          <ul id="conflict-list"></ul>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="/src/school/timetable.js"></script>
+</body>
+</html>

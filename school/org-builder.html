@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organization Builder — SchoolOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="auth-loading">
+
+  <div class="auth-loader" id="auth-loader">
+    <div class="auth-loader-spinner"></div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- NAV -->
+    <nav class="dash-nav">
+      <div class="container">
+        <a href="/school/org-builder.html" class="logo">
+          <span class="logo-mark" data-brand-logo>SP</span>
+          <span data-brand-name>SchoolPortal</span>
+        </a>
+        <span class="dash-nav-badge" id="role-badge" style="background:#dcfce7;color:#166534;">Org Builder</span>
+        <div style="flex:1;"></div>
+        <div class="dash-nav-user">
+          <span id="user-name"></span>
+          <a href="/school/dashboard.html" class="btn btn-ghost btn-sm">Back to Dashboard</a>
+          <button class="btn btn-ghost btn-sm" id="logout-btn">Log Out</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="dash-main">
+      <div class="container">
+
+        <div class="dash-header">
+          <div>
+            <h1>Organization Hierarchy Builder</h1>
+            <p>Define positions and reporting chains for <strong id="school-name">your school</strong>.</p>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="dash-card" style="margin-bottom:24px;border-left:4px solid #3b82f6;">
+          <p><strong>How it works:</strong> Add positions to your org chart. Each position has a title, a linked user, and a "Reports To" field. The hierarchy engine uses this chain to route messages, requests, and notifications through the correct approval path.</p>
+        </div>
+
+        <!-- Add Position Form -->
+        <div class="dash-card" style="margin-bottom:24px;">
+          <h3>Add Position</h3>
+          <div class="dash-form-row" style="gap:12px;flex-wrap:wrap;">
+            <div>
+              <label>Position Title</label>
+              <input type="text" id="position-title" class="dash-input" placeholder="e.g. Floor Head — Junior Wing" style="width:250px;">
+            </div>
+            <div>
+              <label>Assign User</label>
+              <select id="position-user" class="dash-input" style="width:220px;">
+                <option value="">— Select user —</option>
+              </select>
+            </div>
+            <div>
+              <label>Reports To</label>
+              <select id="position-reports-to" class="dash-input" style="width:220px;">
+                <option value="">— None (Top Level) —</option>
+              </select>
+            </div>
+            <div>
+              <label>Level</label>
+              <select id="position-level" class="dash-input" style="width:140px;">
+                <option value="1">1 — Top</option>
+                <option value="2" selected>2 — Mid</option>
+                <option value="3">3 — Line</option>
+                <option value="4">4 — Staff</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button class="btn btn-primary" id="add-position-btn">Add Position</button>
+            </div>
+          </div>
+          <span id="add-status" class="dash-form-status"></span>
+        </div>
+
+        <!-- Hierarchy Tree -->
+        <div class="dash-card" style="margin-bottom:24px;">
+          <h3>Current Hierarchy</h3>
+          <div id="hierarchy-tree" class="hierarchy-tree-container">
+            <p class="dash-empty">No positions defined yet.</p>
+          </div>
+        </div>
+
+        <!-- Positions Table -->
+        <div class="dash-card">
+          <h3>All Positions</h3>
+          <div id="positions-table"></div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="/src/school/org-builder.js"></script>
+</body>
+</html>

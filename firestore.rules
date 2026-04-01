@@ -37,9 +37,12 @@ service cloud.firestore {
 
     // ── Users ────────────────────────────────────────────────────────
     match /users/{userId} {
+      // Staff can read all users (for name lookups, hierarchy, etc.)
+      // Parents can read users from same school (for teacher names on homework/messages)
       allow read: if request.auth != null
                   && (request.auth.uid == userId
-                      || userRole() in ['school_admin', 'super_admin', 'platform_admin', 'admin', 'line_manager']);
+                      || userRole() in ['school_admin', 'super_admin', 'platform_admin', 'admin', 'line_manager', 'teacher']
+                      || (userRole() in ['parent', 'student'] && resource.data.schoolId == userSchool()));
 
       allow create: if request.auth != null
                     && (request.auth.uid == userId
@@ -177,7 +180,8 @@ service cloud.firestore {
       // ── Requests (hierarchy-routed, escalatable) ─────────────────
       match /requests/{requestId} {
         allow read: if belongsToSchool(schoolId)
-                    && (resource.data.parentId == request.auth.uid
+                    && (resource.data.senderId == request.auth.uid
+                        || resource.data.parentId == request.auth.uid
                         || request.auth.uid in resource.data.recipientUids
                         || userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin']);
         allow create: if belongsToSchool(schoolId);
@@ -282,22 +286,13 @@ service cloud.firestore {
       }
 
       // ── Library ──────────────────────────────────────────────────
-      match /library/{docId} {
+      // Data path: library/books/items/{bookId}, library/transactions/items/{txnId}
+      match /library/{category}/items/{itemId} {
         allow read: if belongsToSchool(schoolId);
-        allow create, update, delete: if isSchoolStaff(schoolId)
+        allow create, update: if isSchoolStaff(schoolId)
                     && userRole() in ['super_admin', 'admin', 'teacher', 'school_admin', 'platform_admin'];
-
-        match /books/{bookId} {
-          allow read: if belongsToSchool(schoolId);
-          allow create, update, delete: if isSchoolStaff(schoolId)
-                      && userRole() in ['super_admin', 'admin', 'teacher', 'school_admin', 'platform_admin'];
-        }
-
-        match /transactions/{txnId} {
-          allow read: if belongsToSchool(schoolId);
-          allow create, update: if isSchoolStaff(schoolId);
-          allow delete: if false;
-        }
+        allow delete: if category == 'books' && isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
       }
 
       // ── Documents (student docs) ─────────────────────────────────
@@ -319,10 +314,10 @@ service cloud.firestore {
       // ── Notifications ────────────────────────────────────────────
       match /notifications/{notifId} {
         allow read: if belongsToSchool(schoolId)
-                    && resource.data.recipientId == request.auth.uid;
+                    && resource.data.uid == request.auth.uid;
         allow create: if belongsToSchool(schoolId);
         allow update: if belongsToSchool(schoolId)
-                      && resource.data.recipientId == request.auth.uid;
+                      && resource.data.uid == request.auth.uid;
         allow delete: if false;
       }
     }

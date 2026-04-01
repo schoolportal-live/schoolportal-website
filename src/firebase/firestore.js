@@ -24,15 +24,16 @@ export const ROLES = {
 
 /** Route each role redirects to after login */
 export const ROLE_ROUTES = {
-  [ROLES.SCHOOL_ADMIN]: '/admin/dashboard.html',
-  [ROLES.PARENT]: '/parent/portal.html',
+  [ROLES.SCHOOL_ADMIN]: '/school/dashboard.html',
+  [ROLES.PARENT]: '/school/parent.html',
   // New SchoolOS roles
   platform_admin: '/platform/dashboard.html',
-  super_admin: '/admin/dashboard.html',
-  admin: '/admin/dashboard.html',
-  line_manager: '/admin/dashboard.html',
-  teacher: '/admin/dashboard.html',
-  student: '/parent/portal.html',
+  super_admin: '/school/dashboard.html',
+  admin: '/school/admin.html',
+  line_manager: '/school/linemanager.html',
+  teacher: '/school/teacher.html',
+  parent: '/school/parent.html',
+  student: '/school/student.html',
 }
 
 /**
@@ -58,13 +59,15 @@ export async function getUserDoc(uid) {
 /**
  * Create a user document after registration.
  * Called immediately after createUserWithEmailAndPassword.
+ * Accepts role-specific fields (adminSubRole, homeSection, subjects, etc.) via spread.
  */
-export async function createUserDoc(uid, { role, email, displayName, schoolId = '' }) {
+export async function createUserDoc(uid, { role, email, displayName, schoolId = '', ...extra }) {
   await setDoc(doc(db, 'users', uid), {
     role,
     email,
     displayName,
     schoolId,
+    ...extra,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })

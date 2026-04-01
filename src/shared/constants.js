@@ -50,8 +50,8 @@ export const ROLE_ROUTES = {
   [ROLES.PARENT]: '/school/parent.html',
   [ROLES.STUDENT]: '/school/student.html',
 
-  // Legacy routes (redirect to new ones in Phase 3)
-  [ROLES.SCHOOL_ADMIN]: '/admin/dashboard.html',
+  // Legacy role → new dashboard
+  [ROLES.SCHOOL_ADMIN]: '/school/dashboard.html',
 }
 
 // ── Modules ────────────────────────────────────────────────────────────────

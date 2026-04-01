@@ -20,6 +20,10 @@ import { getUserDoc } from './firestore.js'
 import { getSchool } from './schools.js'
 import { ROLES, ROLE_ROUTES } from '../shared/constants.js'
 import { applyBranding } from '../shared/branding.js'
+import { registerServiceWorker } from '../shared/pwa.js'
+
+// Register PWA service worker on every guarded page
+registerServiceWorker()
 
 // Legacy ROLE_ROUTES re-export for backward compatibility
 // (existing firestore.js still exports ROLE_ROUTES from its own ROLES — those pages still work)

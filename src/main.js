@@ -4,6 +4,9 @@
  * Also saves form submissions to Firestore so admin dashboard can view them.
  */
 import { saveSubmission } from './firebase/firestore.js'
+import { registerServiceWorker } from './shared/pwa.js'
+
+registerServiceWorker()
 
 // ── Mobile Nav ─────────────────────────────────────────────────────────────
 const hamburger = document.getElementById('nav-hamburger')

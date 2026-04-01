@@ -111,13 +111,13 @@ h1, h2, h3 {
 .btn:active { transform: translateY(0) !important; }
 
 .btn-primary {
-  background: var(--blue);
+  background: var(--brand-primary);
   color: var(--white);
-  border-color: var(--blue);
+  border-color: var(--brand-primary);
 }
 .btn-primary:hover {
-  background: var(--blue-dark);
-  border-color: var(--blue-dark);
+  background: var(--brand-primary-dark);
+  border-color: var(--brand-primary-dark);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(37,99,235,.35);
 }
@@ -1028,6 +1028,19 @@ h1, h2, h3 {
 .dash-nav-badge.admin { background: var(--blue-50); color: var(--blue); }
 .dash-nav-badge.parent { background: var(--green-50); color: var(--green-dark); }
 .dash-nav-badge.platform { background: #fef3c7; color: #92400e; }
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--gray-100, #f1f5f9);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  border: 1px solid var(--gray-200, #e2e8f0);
+}
+.hierarchy-node { transition: background 0.15s; }
+.hierarchy-node:hover { background: var(--gray-50, #f8fafc) !important; }
 .dash-nav-user {
   display: flex;
   align-items: center;
@@ -1131,8 +1144,8 @@ h1, h2, h3 {
 }
 .dash-tab:hover { background: var(--gray-50); color: var(--text); }
 .dash-tab.active {
-  background: var(--blue-50);
-  color: var(--blue);
+  background: var(--brand-primary-light);
+  color: var(--brand-primary);
   box-shadow: var(--shadow-sm);
 }
 .dash-tab svg { flex-shrink: 0; }
@@ -1164,9 +1177,9 @@ h1, h2, h3 {
 .dash-form .form-group input:focus,
 .dash-form .form-group select:focus,
 .dash-form .form-group textarea:focus {
-  border-color: var(--blue);
+  border-color: var(--brand-primary);
   background: var(--white);
-  box-shadow: 0 0 0 3px var(--blue-100);
+  box-shadow: 0 0 0 3px var(--brand-primary-light);
 }
 .dash-form .form-group input::placeholder,
 .dash-form .form-group textarea::placeholder { color: var(--text-light); }
@@ -1183,7 +1196,7 @@ h1, h2, h3 {
   font-size: 14px;
   font-weight: 500;
 }
-.dash-form-status.sending { color: var(--blue); }
+.dash-form-status.sending { color: var(--brand-primary); }
 .dash-form-status.success { color: var(--green); }
 .dash-form-status.error   { color: #dc2626; }
 
@@ -1231,6 +1244,14 @@ h1, h2, h3 {
 .dash-list-item.priority-important {
   border-left: 4px solid #f59e0b;
 }
+.dash-list-item.notification-unread {
+  background: var(--blue-50, #eff6ff);
+  border-left: 3px solid var(--brand-primary);
+}
+.attendance-grid { width: 100%; border-collapse: collapse; }
+.attendance-grid th, .attendance-grid td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--gray-200); font-size: 13px; }
+.attendance-grid th { background: var(--gray-50); font-weight: 600; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
+.attendance-grid select { padding: 4px 8px; border: 1px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 13px; }
 .dash-list-item-main { flex: 1; min-width: 0; }
 .dash-list-item-header {
   display: flex;
@@ -1349,9 +1370,28 @@ h1, h2, h3 {
 .dash-filter:hover { color: var(--text); }
 .dash-filter.active {
   background: var(--white);
-  color: var(--blue);
+  color: var(--brand-primary);
   box-shadow: var(--shadow-sm);
 }
+.module-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.module-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--gray-50, #f8fafc);
+  border: 1px solid var(--gray-200, #e2e8f0);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.module-toggle:hover { background: var(--gray-100, #f1f5f9); }
+.module-toggle input[type="checkbox"] { margin: 0; }
 
 /* Inline add form */
 .dash-inline-form {
@@ -1671,3 +1711,91 @@ h1, h2, h3 {
   font-weight: 600;
 }
 .btn-danger:hover { background: #b91c1c; }
+
+/* ============================================================
+   NEW COMPONENTS — Phase 7-8
+   ============================================================ */
+
+/* ── Standalone Input (outside form-group) ──────────────────── */
+.dash-input {
+  padding: 8px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--white);
+  transition: border-color 0.15s;
+}
+.dash-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ── Dash Form Row (inline) ─────────────────────────────────── */
+.dash-form-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── Hierarchy Tree ─────────────────────────────────────────── */
+.hierarchy-tree-container {
+  min-height: 100px;
+}
+.hierarchy-node {
+  transition: background 0.15s, transform 0.1s;
+}
+.hierarchy-node:hover {
+  background: var(--blue-50) !important;
+  transform: translateX(2px);
+}
+
+/* ── Timetable Grid ─────────────────────────────────────────── */
+#schedule-table td {
+  vertical-align: top;
+  min-width: 100px;
+}
+#schedule-table .dash-input {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+/* ── Status Badges (new) ────────────────────────────────────── */
+.dash-status-badge.status-submitted { background: #dbeafe; color: #1d4ed8; }
+.dash-status-badge.status-reviewed { background: #e0e7ff; color: #3730a3; }
+.dash-status-badge.status-dispatched { background: #dcfce7; color: #166534; }
+.dash-status-badge.status-issued { background: #fef3c7; color: #92400e; }
+.dash-status-badge.status-returned { background: #dcfce7; color: #166534; }
+.dash-status-badge.status-excused { background: #f3e8ff; color: #6b21a8; }
+
+/* ── Dashboard Quick Links in Nav ───────────────────────────── */
+.dash-nav-user a.btn {
+  font-size: 13px;
+}
+
+/* ── Toast Update Notification ──────────────────────────────── */
+.toast-update {
+  cursor: pointer;
+  background: var(--brand-primary);
+  color: white;
+}
+.toast-update:hover {
+  background: var(--brand-primary-dark);
+}
+
+/* ── Responsive Fixes ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .dash-form-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dash-nav-user a.btn {
+    display: none;
+  }
+  #schedule-table td {
+    min-width: 80px;
+  }
+}

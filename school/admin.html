@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — SchoolOS</title>
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+  <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="auth-loading">
+
+  <div class="auth-loader" id="auth-loader">
+    <div class="auth-loader-spinner"></div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- NAV -->
+    <nav class="dash-nav">
+      <div class="container">
+        <a href="/school/admin.html" class="logo">
+          <span class="logo-mark" data-brand-logo>SP</span>
+          <span data-brand-name>SchoolPortal</span>
+        </a>
+        <span class="dash-nav-badge admin" id="role-badge">Admin</span>
+        <div style="flex:1;"></div>
+        <div class="dash-nav-user">
+          <span id="user-name"></span>
+          <button class="btn btn-ghost btn-sm" id="logout-btn">Log Out</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="dash-main">
+      <div class="container">
+
+        <!-- Header -->
+        <div class="dash-header">
+          <div>
+            <h1 id="page-title">Admin Dashboard</h1>
+            <p>Welcome, <strong id="welcome-name"></strong>. <span id="role-description"></span></p>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="dash-stats" id="stats-row">
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <h3>Users</h3>
+            <p class="stat-number" id="stat-users">0</p>
+            <p class="stat-label">in school</p>
+          </div>
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            <h3>Students</h3>
+            <p class="stat-number" id="stat-students">0</p>
+            <p class="stat-label">enrolled</p>
+          </div>
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <h3>Sections</h3>
+            <p class="stat-number" id="stat-sections">0</p>
+            <p class="stat-label">total</p>
+          </div>
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <h3>Pending</h3>
+            <p class="stat-number" id="stat-pending">0</p>
+            <p class="stat-label">items</p>
+          </div>
+        </div>
+
+        <!-- Tabs (populated dynamically based on sub-role + active modules) -->
+        <div class="dash-tabs" id="tab-buttons"></div>
+
+        <!-- Tab content container -->
+        <div id="tab-content"></div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="/src/school/admin.js"></script>
+</body>
+</html>

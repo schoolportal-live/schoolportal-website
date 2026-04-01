@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Dashboard — SchoolOS</title>
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+  <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="auth-loading">
+
+  <div class="auth-loader" id="auth-loader">
+    <div class="auth-loader-spinner"></div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- NAV -->
+    <nav class="dash-nav">
+      <div class="container">
+        <a href="/school/dashboard.html" class="logo">
+          <span class="logo-mark" data-brand-logo>SP</span>
+          <span data-brand-name>SchoolPortal</span>
+        </a>
+        <span class="dash-nav-badge admin" id="role-badge">Super Admin</span>
+        <div style="flex:1;"></div>
+        <div class="dash-nav-user">
+          <span id="user-name"></span>
+          <a href="/school/org-builder.html" class="btn btn-ghost btn-sm">Org Builder</a>
+          <a href="/school/timetable.html" class="btn btn-ghost btn-sm">Timetable</a>
+          <button class="btn btn-ghost btn-sm" id="logout-btn">Log Out</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="dash-main">
+      <div class="container">
+
+        <!-- Header -->
+        <div class="dash-header">
+          <div>
+            <h1 data-brand-name>School Dashboard</h1>
+            <p>Welcome, <strong id="welcome-name"></strong>. Manage your school structure and users.</p>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="dash-stats">
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <h3>Classes</h3>
+            <p class="stat-number" id="stat-classes">0</p>
+            <p class="stat-label">defined</p>
+          </div>
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <h3>Sections</h3>
+            <p class="stat-number" id="stat-sections">0</p>
+            <p class="stat-label">total</p>
+          </div>
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <h3>Staff</h3>
+            <p class="stat-number" id="stat-staff">0</p>
+            <p class="stat-label">users</p>
+          </div>
+          <div class="stat-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            <h3>Students</h3>
+            <p class="stat-number" id="stat-students">0</p>
+            <p class="stat-label">enrolled</p>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="dash-tabs">
+          <button class="dash-tab active" data-tab="classes">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+            Classes & Sections
+          </button>
+          <button class="dash-tab" data-tab="users">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            Users & Roles
+          </button>
+          <button class="dash-tab" data-tab="hierarchy">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="14"/><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><line x1="12" y1="14" x2="6" y2="14"/><line x1="12" y1="14" x2="18" y2="14"/></svg>
+            Hierarchy
+          </button>
+        </div>
+
+        <!-- TAB: Classes & Sections -->
+        <div class="dash-tab-content active" id="tab-classes">
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <h2>Classes & Sections</h2>
+              <button class="btn btn-primary btn-sm" id="btn-add-class">+ Add Class</button>
+            </div>
+
+            <!-- Add Class Form (hidden by default) -->
+            <div id="add-class-form-wrap" style="display:none;margin-bottom:20px;">
+              <form id="add-class-form" class="dash-form" style="background:var(--gray-50);padding:16px;border-radius:var(--radius-sm);">
+                <div class="dash-form-row-2">
+                  <div class="form-group">
+                    <label for="class-name">Class Name *</label>
+                    <input type="text" id="class-name" required placeholder="e.g. Nursery, KG, Class 1, Class 2" />
+                  </div>
+                  <div class="form-group">
+                    <label for="class-sections">Sections (comma-separated) *</label>
+                    <input type="text" id="class-sections" required placeholder="e.g. A, B, C, D, E" />
+                  </div>
+                </div>
+                <div class="dash-form-row-2">
+                  <div class="form-group">
+                    <label for="class-sort">Sort Order</label>
+                    <input type="number" id="class-sort" value="0" min="0" />
+                  </div>
+                  <div class="form-group">
+                    <label>&nbsp;</label>
+                    <div style="display:flex;gap:8px;">
+                      <button type="submit" class="btn btn-primary btn-sm">Create Class</button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-class">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="dash-form-status" id="class-form-status"></div>
+              </form>
+            </div>
+
+            <div id="classes-list"></div>
+          </div>
+        </div>
+
+        <!-- TAB: Users & Roles -->
+        <div class="dash-tab-content" id="tab-users">
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <h2>Users & Roles</h2>
+              <button class="btn btn-primary btn-sm" id="btn-add-user">+ Add User</button>
+            </div>
+
+            <!-- Add User Form (hidden by default) -->
+            <div id="add-user-form-wrap" style="display:none;margin-bottom:20px;">
+              <form id="add-user-form" class="dash-form" style="background:var(--gray-50);padding:16px;border-radius:var(--radius-sm);">
+                <div class="dash-form-row-2">
+                  <div class="form-group">
+                    <label for="new-user-name">Full Name *</label>
+                    <input type="text" id="new-user-name" required placeholder="Full name" />
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-email">Email *</label>
+                    <input type="email" id="new-user-email" required placeholder="user@school.com" />
+                  </div>
+                </div>
+                <div class="dash-form-row-2">
+                  <div class="form-group">
+                    <label for="new-user-password">Password *</label>
+                    <input type="password" id="new-user-password" required minlength="6" placeholder="Min 6 characters" />
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-role">Role *</label>
+                    <select id="new-user-role" required>
+                      <option value="">Select role...</option>
+                      <option value="admin">Admin</option>
+                      <option value="line_manager">Line Manager</option>
+                      <option value="teacher">Teacher</option>
+                      <option value="parent">Parent</option>
+                      <option value="student">Student</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Admin sub-role (shown when role=admin) -->
+                <div id="admin-subrole-wrap" style="display:none;">
+                  <div class="form-group">
+                    <label for="new-user-subrole">Admin Sub-Role *</label>
+                    <select id="new-user-subrole">
+                      <option value="receptionist">Receptionist</option>
+                      <option value="accountant">Accountant</option>
+                      <option value="coordinator">Coordinator</option>
+                      <option value="requisition_incharge">Requisition / Store Incharge</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Teacher fields (shown when role=teacher) -->
+                <div id="teacher-fields-wrap" style="display:none;">
+                  <div class="dash-form-row-2">
+                    <div class="form-group">
+                      <label for="new-user-home-section">Home Section (if home teacher)</label>
+                      <select id="new-user-home-section">
+                        <option value="">None — subject teacher only</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="new-user-subjects">Subjects (comma-separated)</label>
+                      <input type="text" id="new-user-subjects" placeholder="e.g. English, Math, Science" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Assigned Sections</label>
+                    <div id="teacher-section-checkboxes" class="module-toggles"></div>
+                  </div>
+                </div>
+
+                <!-- Line Manager fields (shown when role=line_manager) -->
+                <div id="lm-fields-wrap" style="display:none;">
+                  <div class="form-group">
+                    <label>Managed Sections</label>
+                    <div id="lm-section-checkboxes" class="module-toggles"></div>
+                  </div>
+                </div>
+
+                <!-- Parent fields (shown when role=parent) -->
+                <div id="parent-fields-wrap" style="display:none;">
+                  <div class="dash-form-row-2">
+                    <div class="form-group">
+                      <label for="new-user-child-name">Child Name</label>
+                      <input type="text" id="new-user-child-name" placeholder="Child's full name" />
+                    </div>
+                    <div class="form-group">
+                      <label for="new-user-child-section">Child's Section</label>
+                      <select id="new-user-child-section">
+                        <option value="">Select section...</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Reports To -->
+                <div id="reports-to-wrap" style="display:none;">
+                  <div class="form-group">
+                    <label for="new-user-reports-to">Reports To</label>
+                    <select id="new-user-reports-to">
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                  <button type="submit" class="btn btn-primary btn-sm">Create User</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-user">Cancel</button>
+                </div>
+                <div class="dash-form-status" id="user-form-status"></div>
+              </form>
+            </div>
+
+            <!-- Filter by role -->
+            <div class="dash-filter-tabs" style="margin-bottom:16px;">
+              <button class="dash-filter active" data-role-filter="all">All</button>
+              <button class="dash-filter" data-role-filter="admin">Admin</button>
+              <button class="dash-filter" data-role-filter="line_manager">Line Managers</button>
+              <button class="dash-filter" data-role-filter="teacher">Teachers</button>
+              <button class="dash-filter" data-role-filter="parent">Parents</button>
+              <button class="dash-filter" data-role-filter="student">Students</button>
+            </div>
+
+            <div id="users-list"></div>
+          </div>
+        </div>
+
+        <!-- TAB: Hierarchy -->
+        <div class="dash-tab-content" id="tab-hierarchy">
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <h2>School Hierarchy</h2>
+            </div>
+            <p style="color:var(--text-muted);margin-bottom:20px;">
+              This shows how staff members are connected. The notification chain follows this hierarchy — when a parent sends a message, it routes through these reporting lines.
+            </p>
+            <div id="hierarchy-tree"></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="/src/school/dashboard.js"></script>
+</body>
+</html>
