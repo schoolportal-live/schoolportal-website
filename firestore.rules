@@ -3,112 +3,328 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Helpers ──────────────────────────────────────────────────────
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
     function userRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return userData().role;
     }
     function userSchool() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
+      return userData().schoolId;
+    }
+    function isPlatformAdmin() {
+      return userRole() == 'platform_admin';
+    }
+    function isSchoolStaff(schoolId) {
+      return request.auth != null
+             && (isPlatformAdmin() || (userSchool() == schoolId && userRole() in ['super_admin', 'admin', 'line_manager', 'teacher', 'school_admin']));
+    }
+    function belongsToSchool(schoolId) {
+      return request.auth != null
+             && (isPlatformAdmin() || userSchool() == schoolId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //   TOP-LEVEL COLLECTIONS (Legacy + Users + Platform)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // ── Platform Config ─────────────────────────────────────────────
+    match /platform/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && (isPlatformAdmin() || userRole() == 'school_admin');
     }
 
     // ── Users ────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if request.auth != null
                   && (request.auth.uid == userId
-                      || userRole() == 'school_admin');
+                      || userRole() in ['school_admin', 'super_admin', 'platform_admin', 'admin', 'line_manager']);
 
       allow create: if request.auth != null
-                    && request.auth.uid == userId
-                    && request.resource.data.role in ['school_admin', 'parent']
-                    && request.resource.data.keys().hasAll(['role', 'email', 'displayName', 'createdAt']);
+                    && (request.auth.uid == userId
+                        || isPlatformAdmin()
+                        || userRole() in ['super_admin', 'school_admin']);
 
       allow update: if request.auth != null
-                    && request.auth.uid == userId
-                    && request.resource.data.role == resource.data.role;
+                    && (request.auth.uid == userId
+                        || isPlatformAdmin()
+                        || userRole() in ['super_admin', 'school_admin']);
 
       allow delete: if request.auth != null
-                    && userRole() == 'school_admin'
-                    && resource.data.role == 'parent';
+                    && (isPlatformAdmin()
+                        || userRole() in ['super_admin', 'school_admin']);
     }
 
-    // ── Notices ──────────────────────────────────────────────────────
+    // ── Legacy Top-Level Collections (kept during migration) ─────────
+    // These rules maintain backward compatibility with existing Phase 1-4 code.
+    // They will be removed after Phase 3 migration to subcollections.
+
     match /notices/{noticeId} {
       allow read: if request.auth != null
                   && resource.data.schoolId == userSchool();
-
       allow create: if request.auth != null
-                    && userRole() == 'school_admin'
-                    && request.resource.data.schoolId == userSchool()
-                    && request.resource.data.keys().hasAll(['title', 'body', 'authorId', 'schoolId', 'createdAt']);
-
+                    && userRole() in ['school_admin', 'super_admin']
+                    && request.resource.data.schoolId == userSchool();
       allow update, delete: if request.auth != null
-                            && userRole() == 'school_admin'
+                            && userRole() in ['school_admin', 'super_admin']
                             && resource.data.schoolId == userSchool();
     }
 
-    // ── Submissions (public landing page forms) ──────────────────────
     match /submissions/{subId} {
       allow read: if request.auth != null
-                  && userRole() == 'school_admin';
+                  && userRole() in ['school_admin', 'super_admin', 'platform_admin'];
       allow create: if true;
       allow update, delete: if false;
     }
 
-    // ── Parent Forms (absence, permission notes) ─────────────────────
     match /parentForms/{formId} {
-      // Parents can read their own forms; admins can read all in their school
       allow read: if request.auth != null
                   && (resource.data.parentId == request.auth.uid
-                      || (userRole() == 'school_admin' && resource.data.schoolId == userSchool()));
-
-      // Parents can create forms for themselves
+                      || (userRole() in ['school_admin', 'super_admin'] && resource.data.schoolId == userSchool()));
       allow create: if request.auth != null
-                    && request.resource.data.parentId == request.auth.uid
-                    && request.resource.data.keys().hasAll(['formType', 'parentId', 'parentName', 'schoolId', 'data', 'status', 'createdAt']);
-
-      // Admins can update status (acknowledge/approve/deny)
+                    && request.resource.data.parentId == request.auth.uid;
       allow update: if request.auth != null
-                    && userRole() == 'school_admin'
+                    && userRole() in ['school_admin', 'super_admin']
                     && resource.data.schoolId == userSchool();
-
       allow delete: if false;
     }
 
-    // ── Messages ─────────────────────────────────────────────────────
     match /messages/{messageId} {
-      // Users can read messages they sent or that are in their school (admin)
       allow read: if request.auth != null
                   && (resource.data.senderId == request.auth.uid
                       || resource.data.recipientId == request.auth.uid
-                      || (userRole() == 'school_admin' && resource.data.schoolId == userSchool()));
-
-      // Any authenticated user in the school can send messages
+                      || (userRole() in ['school_admin', 'super_admin'] && resource.data.schoolId == userSchool()));
       allow create: if request.auth != null
-                    && request.resource.data.senderId == request.auth.uid
-                    && request.resource.data.schoolId == userSchool()
-                    && request.resource.data.keys().hasAll(['senderId', 'senderName', 'senderRole', 'schoolId', 'subject', 'body', 'createdAt']);
-
-      // Allow marking as read
+                    && request.resource.data.senderId == request.auth.uid;
       allow update: if request.auth != null
                     && (resource.data.recipientId == request.auth.uid
-                        || (userRole() == 'school_admin' && resource.data.schoolId == userSchool()));
-
+                        || (userRole() in ['school_admin', 'super_admin'] && resource.data.schoolId == userSchool()));
       allow delete: if false;
     }
 
-    // ── Events ───────────────────────────────────────────────────────
     match /events/{eventId} {
-      // Anyone in the school can read events
       allow read: if request.auth != null
                   && resource.data.schoolId == userSchool();
+      allow create, update, delete: if request.auth != null
+                    && userRole() in ['school_admin', 'super_admin']
+                    && resource.data.schoolId == userSchool();
+    }
 
-      // Only admin can create/update/delete events
-      allow create: if request.auth != null
-                    && userRole() == 'school_admin'
-                    && request.resource.data.schoolId == userSchool();
+    // ═══════════════════════════════════════════════════════════════════
+    //   SCHOOLS & SUBCOLLECTIONS (New Multi-Tenant Structure)
+    // ═══════════════════════════════════════════════════════════════════
 
-      allow update, delete: if request.auth != null
-                            && userRole() == 'school_admin'
-                            && resource.data.schoolId == userSchool();
+    match /schools/{schoolId} {
+      // Anyone authenticated can read school doc (needed for branding on login)
+      allow read: if request.auth != null;
+      // Platform admin or school_admin (legacy, during migration) can manage schools
+      allow create, update, delete: if request.auth != null
+                   && (isPlatformAdmin() || userRole() == 'school_admin');
+
+      // ── Classes ──────────────────────────────────────────────────
+      match /classes/{classId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Sections ─────────────────────────────────────────────────
+      match /sections/{sectionId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Students ─────────────────────────────────────────────────
+      match /students/{studentId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+        allow delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Hierarchy Positions ──────────────────────────────────────
+      match /hierarchy/{positionId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Notices (subcollection) ──────────────────────────────────
+      match /notices/{noticeId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create: if isSchoolStaff(schoolId);
+        allow update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Messages (hierarchy-routed) ──────────────────────────────
+      match /messages/{messageId} {
+        allow read: if belongsToSchool(schoolId)
+                    && (resource.data.senderId == request.auth.uid
+                        || request.auth.uid in resource.data.recipientUids
+                        || userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin']);
+        allow create: if belongsToSchool(schoolId)
+                      && request.resource.data.senderId == request.auth.uid;
+        allow update: if belongsToSchool(schoolId)
+                      && (request.auth.uid in resource.data.recipientUids
+                          || userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin']);
+        allow delete: if false;
+      }
+
+      // ── Requests (hierarchy-routed, escalatable) ─────────────────
+      match /requests/{requestId} {
+        allow read: if belongsToSchool(schoolId)
+                    && (resource.data.parentId == request.auth.uid
+                        || request.auth.uid in resource.data.recipientUids
+                        || userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin']);
+        allow create: if belongsToSchool(schoolId);
+        allow update: if belongsToSchool(schoolId)
+                      && (request.auth.uid in resource.data.recipientUids
+                          || userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin']);
+        allow delete: if false;
+      }
+
+      // ── Attendance ───────────────────────────────────────────────
+      match /attendance/{recordId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update: if isSchoolStaff(schoolId);
+        allow delete: if false;
+      }
+
+      // ── Fees ─────────────────────────────────────────────────────
+      match /fees/{feeId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+        allow delete: if false;
+      }
+
+      match /feePayments/{paymentId} {
+        allow read: if belongsToSchool(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+        allow create, update: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+        allow delete: if false;
+      }
+
+      // ── Results ──────────────────────────────────────────────────
+      match /results/{examId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'teacher', 'school_admin', 'platform_admin'];
+        allow delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Homework ─────────────────────────────────────────────────
+      match /homework/{homeworkId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'teacher', 'school_admin', 'platform_admin'];
+        allow update: if belongsToSchool(schoolId);  // Parents update completion, teachers verify
+        allow delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'teacher', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Requisitions ─────────────────────────────────────────────
+      match /requisitions/{reqId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create: if isSchoolStaff(schoolId);
+        allow update: if isSchoolStaff(schoolId);
+        allow delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'school_admin', 'platform_admin'];
+      }
+
+      match /requisitionCatalogue/{itemId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      match /paperRequisitions/{reqId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update: if isSchoolStaff(schoolId);
+        allow delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Events ───────────────────────────────────────────────────
+      match /events/{eventId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Transport ────────────────────────────────────────────────
+      match /transport/{routeId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      match /transportRequests/{reqId} {
+        allow read: if belongsToSchool(schoolId)
+                    && (resource.data.parentId == request.auth.uid
+                        || userRole() in ['super_admin', 'admin', 'school_admin', 'teacher', 'line_manager', 'platform_admin']);
+        allow create: if belongsToSchool(schoolId);
+        allow update: if isSchoolStaff(schoolId);
+        allow delete: if false;
+      }
+
+      // ── Timetable ────────────────────────────────────────────────
+      match /timetable/{sectionId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Library ──────────────────────────────────────────────────
+      match /library/{docId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update, delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'teacher', 'school_admin', 'platform_admin'];
+
+        match /books/{bookId} {
+          allow read: if belongsToSchool(schoolId);
+          allow create, update, delete: if isSchoolStaff(schoolId)
+                      && userRole() in ['super_admin', 'admin', 'teacher', 'school_admin', 'platform_admin'];
+        }
+
+        match /transactions/{txnId} {
+          allow read: if belongsToSchool(schoolId);
+          allow create, update: if isSchoolStaff(schoolId);
+          allow delete: if false;
+        }
+      }
+
+      // ── Documents (student docs) ─────────────────────────────────
+      match /documents/{docId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update: if belongsToSchool(schoolId);
+        allow delete: if isSchoolStaff(schoolId)
+                    && userRole() in ['super_admin', 'admin', 'school_admin', 'platform_admin'];
+      }
+
+      // ── Medical Records ──────────────────────────────────────────
+      match /medicalRecords/{recordId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create: if belongsToSchool(schoolId);  // Parents can submit for approval
+        allow update: if isSchoolStaff(schoolId);     // Staff approves/rejects
+        allow delete: if false;                       // Never delete medical records
+      }
+
+      // ── Notifications ────────────────────────────────────────────
+      match /notifications/{notifId} {
+        allow read: if belongsToSchool(schoolId)
+                    && resource.data.recipientId == request.auth.uid;
+        allow create: if belongsToSchool(schoolId);
+        allow update: if belongsToSchool(schoolId)
+                      && resource.data.recipientId == request.auth.uid;
+        allow delete: if false;
+      }
     }
 
     // ── Default deny ─────────────────────────────────────────────────

@@ -1,30 +1,54 @@
 /**
- * SchoolPortal — MPA Auth Guard
+ * SchoolOS — MPA Auth Guard
  *
  * Each protected page calls initGuard() at the top of its JS.
  * The guard:
  *   1. Waits for Firebase to check the persisted auth token
  *   2. Checks login status + Firestore role
  *   3. Redirects or reveals the page content
+ *   4. Fetches user doc + school doc for branding and module checks
  *
  * Usage:
  *   import { initGuard } from '../firebase/guard.js'
- *   const { user, role } = await initGuard({ requireAuth: true, requiredRole: 'school_admin' })
+ *   const { user, role, userDoc, school } = await initGuard({
+ *     requireAuth: true,
+ *     allowedRoles: ['super_admin', 'admin'],
+ *   })
  */
 import { waitForAuth } from './auth.js'
-import { getUserRole, ROLE_ROUTES } from './firestore.js'
+import { getUserDoc } from './firestore.js'
+import { getSchool } from './schools.js'
+import { ROLES, ROLE_ROUTES } from '../shared/constants.js'
+import { applyBranding } from '../shared/branding.js'
+
+// Legacy ROLE_ROUTES re-export for backward compatibility
+// (existing firestore.js still exports ROLE_ROUTES from its own ROLES — those pages still work)
+
+/**
+ * Resolve the correct dashboard URL for a role.
+ * Supports both new roles and the legacy 'school_admin' role.
+ */
+function getRouteForRole(role) {
+  // Legacy mapping: school_admin → admin dashboard (existing pages still work)
+  if (role === 'school_admin') return '/admin/dashboard.html'
+  return ROLE_ROUTES[role] || '/login.html'
+}
 
 /**
  * @param {Object} options
- * @param {boolean} options.requireAuth  — true for protected pages
- * @param {string|null} options.requiredRole — 'school_admin', 'parent', or null (any)
+ * @param {boolean} options.requireAuth — true for protected pages
+ * @param {string|null} options.requiredRole — single role check (legacy, still works)
+ * @param {string[]|null} options.allowedRoles — array of allowed roles (new, preferred)
  * @param {string} options.redirectTo — where to send unauthenticated users
- * @returns {Promise<{user: object|null, role: string|null}>}
+ * @param {boolean} options.loadSchool — whether to fetch school doc + apply branding (default true)
+ * @returns {Promise<{user, role, userDoc, school}>}
  */
 export async function initGuard({
   requireAuth = false,
   requiredRole = null,
+  allowedRoles = null,
   redirectTo = '/login.html',
+  loadSchool = true,
 } = {}) {
   const user = await waitForAuth()
 
@@ -32,25 +56,25 @@ export async function initGuard({
   if (!user) {
     if (requireAuth) {
       window.location.replace(redirectTo)
-      // Return a never-resolving promise to halt page execution
       return new Promise(() => {})
     }
-    // Public page — just reveal content
     revealContent()
-    return { user: null, role: null }
+    return { user: null, role: null, userDoc: null, school: null }
   }
 
-  // ── Logged in — fetch role from Firestore ───────────────────────
+  // ── Logged in — fetch user doc from Firestore ──────────────────
+  let userDoc = null
   let role = null
   try {
-    role = await getUserRole(user.uid)
+    userDoc = await getUserDoc(user.uid)
+    role = userDoc?.role || null
   } catch (err) {
-    console.error('Failed to fetch user role:', err)
+    console.error('Failed to fetch user doc:', err)
   }
 
   // ── On the login page while logged in → redirect to dashboard ──
   if (!requireAuth) {
-    const destination = ROLE_ROUTES[role] || '/login.html'
+    const destination = getRouteForRole(role)
     if (destination !== '/login.html') {
       window.location.replace(destination)
       return new Promise(() => {})
@@ -58,16 +82,41 @@ export async function initGuard({
   }
 
   // ── On a protected page — check role match ─────────────────────
-  if (requireAuth && requiredRole && role !== requiredRole) {
-    // Wrong role — send to the correct dashboard, or login if no role
-    const destination = ROLE_ROUTES[role] || '/login.html'
-    window.location.replace(destination)
-    return new Promise(() => {})
+  if (requireAuth) {
+    const roleAllowed = checkRoleAllowed(role, requiredRole, allowedRoles)
+    if (!roleAllowed) {
+      const destination = getRouteForRole(role)
+      window.location.replace(destination)
+      return new Promise(() => {})
+    }
+  }
+
+  // ── Fetch school doc + apply branding ──────────────────────────
+  let school = null
+  if (loadSchool && userDoc?.schoolId) {
+    try {
+      school = await getSchool(userDoc.schoolId)
+      if (school?.branding) {
+        applyBranding(school.branding)
+      }
+    } catch (err) {
+      console.warn('Failed to load school branding:', err)
+    }
   }
 
   // ── All checks passed — reveal the page ────────────────────────
   revealContent()
-  return { user, role }
+  return { user, role, userDoc, school }
+}
+
+/**
+ * Check if a role is allowed on this page.
+ * Supports both single requiredRole (legacy) and allowedRoles array (new).
+ */
+function checkRoleAllowed(role, requiredRole, allowedRoles) {
+  if (!requiredRole && !allowedRoles) return true // No restriction
+  if (allowedRoles) return allowedRoles.includes(role)
+  return role === requiredRole
 }
 
 /** Remove the auth-loading state so page content becomes visible. */

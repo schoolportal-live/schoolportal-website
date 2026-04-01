@@ -13,7 +13,16 @@ button { font-family: inherit; }
 
 /* === DESIGN TOKENS === */
 :root {
-  /* Brand */
+  /* Brand (overridden per-school by branding.js) */
+  --brand-primary: #2563eb;
+  --brand-secondary: #16a34a;
+  --brand-accent: #f59e0b;
+  --brand-primary-light: #eff6ff;
+  --brand-primary-dark: #1d4ed8;
+  --brand-secondary-light: #f0fdf4;
+  --brand-accent-light: #fffbeb;
+
+  /* Brand (static) */
   --blue:        #2563eb;
   --blue-dark:   #1d4ed8;
   --blue-navy:   #1e3a5f;
@@ -1529,3 +1538,135 @@ h1, h2, h3 {
   .dash-section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
   .dash-filter-tabs { flex-wrap: wrap; }
 }
+
+/* ============================================================
+   SchoolOS — Phase 0 Component Styles
+   Toast notifications, data tables, additional status badges
+   ============================================================ */
+
+/* === TOAST NOTIFICATIONS === */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: auto;
+  max-width: 360px;
+  box-shadow: var(--shadow-lg);
+}
+.toast-visible { opacity: 1; transform: translateX(0); }
+.toast-success { background: #16a34a; }
+.toast-error   { background: #dc2626; }
+.toast-info    { background: #2563eb; }
+.toast-warning { background: #f59e0b; color: var(--gray-900); }
+
+/* === DATA TABLE === */
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.dash-table th,
+.dash-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.dash-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--gray-50);
+}
+.dash-table tbody tr:hover {
+  background: var(--gray-50);
+}
+
+/* === ADDITIONAL STATUS BADGES === */
+.status-in_progress { background: #dbeafe; color: #1d4ed8; }
+.status-escalated   { background: #fef3c7; color: #92400e; }
+.status-resolved    { background: #dcfce7; color: #166534; }
+.status-paid        { background: #dcfce7; color: #166534; }
+.status-unpaid      { background: #fee2e2; color: #991b1b; }
+.status-partial     { background: #fef3c7; color: #92400e; }
+.status-overdue     { background: #fee2e2; color: #991b1b; }
+.status-present     { background: #dcfce7; color: #166534; }
+.status-absent      { background: #fee2e2; color: #991b1b; }
+.status-late        { background: #fef3c7; color: #92400e; }
+.status-assigned    { background: #dbeafe; color: #1d4ed8; }
+.status-completed   { background: #dcfce7; color: #166534; }
+.status-incomplete  { background: #fef3c7; color: #92400e; }
+.status-not_completed { background: #fee2e2; color: #991b1b; }
+
+/* === EMPTY STATE === */
+.dash-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+/* === MODAL (shared confirm dialog) === */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.modal-visible { opacity: 1; }
+.modal-box {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 28px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: var(--shadow-xl);
+}
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.modal-message {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.btn-danger {
+  background: #dc2626;
+  color: var(--white);
+  border: none;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-danger:hover { background: #b91c1c; }
