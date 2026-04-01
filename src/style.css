@@ -1027,6 +1027,7 @@ h1, h2, h3 {
 }
 .dash-nav-badge.admin { background: var(--blue-50); color: var(--blue); }
 .dash-nav-badge.parent { background: var(--green-50); color: var(--green-dark); }
+.dash-nav-badge.platform { background: #fef3c7; color: #92400e; }
 .dash-nav-user {
   display: flex;
   align-items: center;

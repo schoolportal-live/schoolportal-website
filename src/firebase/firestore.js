@@ -26,6 +26,13 @@ export const ROLES = {
 export const ROLE_ROUTES = {
   [ROLES.SCHOOL_ADMIN]: '/admin/dashboard.html',
   [ROLES.PARENT]: '/parent/portal.html',
+  // New SchoolOS roles
+  platform_admin: '/platform/dashboard.html',
+  super_admin: '/admin/dashboard.html',
+  admin: '/admin/dashboard.html',
+  line_manager: '/admin/dashboard.html',
+  teacher: '/admin/dashboard.html',
+  student: '/parent/portal.html',
 }
 
 /**
