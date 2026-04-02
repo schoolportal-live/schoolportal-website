@@ -22,6 +22,7 @@ import {
 } from '../firebase/schools.js'
 import { MODULES, MESSAGE_CATEGORIES, REQUEST_TYPES, ATTENDANCE_STATUSES, HOMEWORK_STATUSES } from '../shared/constants.js'
 import { esc, formatDate, timeAgo, toast, statusBadge } from '../shared/components.js'
+import { exportAttendanceCSV } from '../shared/csv-export.js'
 
 // ── Auth Guard ──────────────────────────────────────────────────────────
 const { user, role, userDoc, school } = await initGuard({
@@ -323,6 +324,7 @@ async function loadAttendanceGrid() {
       </table>
       <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
         <button class="btn btn-primary btn-sm" id="att-save">Save Attendance</button>
+        <button class="btn btn-sm btn-secondary" id="att-export">Export CSV</button>
         <label class="module-toggle" style="cursor:pointer;">
           <input type="file" id="att-rfid-upload" accept=".csv" style="display:none;" />
           Upload RFID CSV
@@ -352,6 +354,18 @@ async function loadAttendanceGrid() {
       } catch (err) {
         toast('Failed to save: ' + err.message, 'error')
       }
+    })
+
+    // Export attendance CSV
+    document.getElementById('att-export')?.addEventListener('click', () => {
+      const records = Array.from(gridContainer.querySelectorAll('.att-status')).map(sel => ({
+        studentName: sel.dataset.studentName,
+        studentId: sel.dataset.studentId,
+        status: sel.value,
+      }))
+      const sec = mySections.find(s => s.id === sectionId)
+      exportAttendanceCSV(records, sec?.displayName || sectionId, date)
+      toast('Attendance CSV downloaded', 'success')
     })
 
     // RFID CSV upload

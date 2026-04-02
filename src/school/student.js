@@ -26,6 +26,7 @@ import {
 } from '../firebase/schools.js'
 import { MODULES, HOMEWORK_STATUSES, ATTENDANCE_STATUSES } from '../shared/constants.js'
 import { esc, formatDate, timeAgo, toast, statusBadge } from '../shared/components.js'
+import { printReportCard } from '../shared/report-card.js'
 
 // ── Auth Guard ──────────────────────────────────────────────────────────
 const { user, role, userDoc, school } = await initGuard({
@@ -261,7 +262,7 @@ function renderResults(el) {
     return
   }
 
-  const rows = results.map(exam => {
+  const rows = results.map((exam, idx) => {
     const myResults = exam.results?.[studentId] || {}
     const subjects = exam.subjects || Object.keys(myResults)
     const totalObtained = subjects.reduce((sum, s) => sum + (myResults[s] || 0), 0)
@@ -273,12 +274,31 @@ function renderResults(el) {
       <td>${totalObtained} / ${totalMax}</td>
       <td>${percentage}%</td>
       <td>${formatDate(exam.publishedAt || exam.createdAt)}</td>
+      <td><button class="btn btn-sm btn-secondary print-report-btn" data-exam-idx="${idx}" style="padding:2px 8px;font-size:11px;">Print</button></td>
     </tr>`
   }).join('')
 
   el.innerHTML = `<div class="dash-card"><h3>Exam Results</h3>
-    <table class="dash-table"><thead><tr><th>Exam</th><th>Type</th><th>Marks</th><th>%</th><th>Date</th></tr></thead>
+    <table class="dash-table"><thead><tr><th>Exam</th><th>Type</th><th>Marks</th><th>%</th><th>Date</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`
+
+  el.querySelectorAll('.print-report-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exam = results[parseInt(btn.dataset.examIdx)]
+      const sec = sections.find(s => s.id === sectionId)
+      const cls = classes.find(c => c.id === classId)
+      printReportCard({
+        student: { name: displayName, rollNumber: userDoc.rollNumber || '', id: studentId },
+        exam,
+        schoolName: school?.branding?.schoolName || school?.name || '',
+        schoolLogo: school?.branding?.logo || '',
+        className: cls?.name || '',
+        sectionName: sec?.displayName || '',
+        primaryColor: school?.branding?.primaryColor || '#2563eb',
+        academicYear: school?.academicYear || '',
+      })
+    })
+  })
 }
 
 // ── Fees Tab ───────────────────────────────────────────────────────────

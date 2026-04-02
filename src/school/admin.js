@@ -26,6 +26,7 @@ import { MODULES, MESSAGE_CATEGORIES, REQUEST_TYPES } from '../shared/constants.
 import {
   esc, formatDate, timeAgo, toast, statusBadge,
 } from '../shared/components.js'
+import { exportStudentsCSV, exportFeesCSV } from '../shared/csv-export.js'
 
 // ── Auth Guard ──────────────────────────────────────────────────────────
 const { user, role, userDoc, school } = await initGuard({
@@ -250,13 +251,34 @@ function renderStudents(container) {
 
   container.innerHTML = `
     <div class="dash-section">
-      <div class="dash-section-header"><h2>Students (${students.length})</h2></div>
+      <div class="dash-section-header">
+        <h2>Students (${students.length})</h2>
+        <button class="btn btn-sm btn-secondary" id="export-students-btn">Export CSV</button>
+      </div>
       <table class="dash-table">
         <thead><tr><th>Name</th><th>Section</th><th>Roll #</th><th>Gender</th><th>Admitted</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
   `
+
+  document.getElementById('export-students-btn')?.addEventListener('click', () => {
+    const exportData = students.map(s => {
+      const sec = sections.find(sec => sec.id === s.sectionId)
+      const cls = classes.find(c => sec && c.id === sec.classId)
+      return {
+        name: s.name || '',
+        rollNo: s.rollNumber || '',
+        section: sec?.displayName || '',
+        class: cls?.name || '',
+        parentName: s.parentName || '',
+        parentPhone: s.parentPhone || '',
+        status: s.status || 'active',
+      }
+    })
+    exportStudentsCSV(exportData)
+    toast('Students CSV downloaded', 'success')
+  })
 }
 
 function renderSections(container) {
@@ -376,7 +398,10 @@ function renderFeesTab(container) {
         <div class="dash-form-status" id="fee-form-status"></div>
       </form>
 
-      <div class="dash-section-header"><h2>Outstanding Fees (${outstandingFees.length})</h2></div>
+      <div class="dash-section-header">
+        <h2>Outstanding Fees (${outstandingFees.length})</h2>
+        ${outstandingFees.length > 0 ? '<button class="btn btn-sm btn-secondary" id="export-fees-btn">Export CSV</button>' : ''}
+      </div>
       ${outstandingFees.length > 0 ? `
         <table class="dash-table">
           <thead><tr><th>Student</th><th>Section</th><th>Month</th><th>Due</th><th>Paid</th><th>Status</th><th>Action</th></tr></thead>
@@ -385,6 +410,21 @@ function renderFeesTab(container) {
       ` : '<div class="dash-empty">No outstanding fees.</div>'}
     </div>
   `
+
+  // Export fees CSV
+  document.getElementById('export-fees-btn')?.addEventListener('click', () => {
+    const exportData = outstandingFees.map(f => ({
+      studentName: f.studentName || '',
+      month: f.month || '',
+      feeType: f.feeType || 'monthly',
+      amount: f.amountDue || 0,
+      paid: f.amountPaid || 0,
+      balance: (f.amountDue || 0) - (f.amountPaid || 0),
+      status: f.status || '',
+    }))
+    exportFeesCSV(exportData)
+    toast('Fees CSV downloaded', 'success')
+  })
 
   // Generate fees
   document.getElementById('fee-gen-form').addEventListener('submit', async (e) => {

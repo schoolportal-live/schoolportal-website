@@ -20,6 +20,7 @@ import {
   getHomeworkBySection, markHomeworkCompleted,
   getTransportRoutes, createTransportRequest,
   getFeesByStudent,
+  getStudentResults, getClasses,
 } from '../firebase/schools.js'
 import { loadHierarchy, buildNotificationChain, buildEscalationChain } from '../shared/hierarchy.js'
 import { getHierarchyLoaders } from '../firebase/schools.js'
@@ -30,6 +31,7 @@ import {
   esc, formatDate, formatDateTime, timeAgo, toast, statusBadge,
   enforceWordLimit,
 } from '../shared/components.js'
+import { printReportCard } from '../shared/report-card.js'
 
 // ── Auth Guard ──────────────────────────────────────────────────────────
 const { user, role, userDoc, school } = await initGuard({
@@ -69,6 +71,8 @@ let allUsers = []
 let homework = []
 let transportRoutes = []
 let fees = []
+let results = []
+let classes = []
 let hierarchyLoaded = false
 
 // ── Load Data ───────────────────────────────────────────────────────────
@@ -91,6 +95,18 @@ async function loadAll() {
     } catch (err) {
       console.warn('Hierarchy not loaded — messages will use fallback routing:', err)
     }
+
+    // Load classes and results
+    try {
+      classes = await getClasses(schoolId).catch(() => [])
+      if (childSection) {
+        const sec = sections.find(s => s.id === childSection)
+        const classId = sec?.classId || ''
+        if (classId) {
+          results = await getStudentResults(schoolId, classId).catch(() => [])
+        }
+      }
+    } catch { /* non-critical */ }
 
     // Notifications
     ;[notifications, unreadCount] = await Promise.all([
@@ -139,6 +155,7 @@ const ALL_TABS = [
   { id: 'messages', label: 'Messages', module: MODULES.COMMUNICATION },
   { id: 'requests', label: 'Requests', module: MODULES.REQUESTS },
   { id: 'homework', label: 'Homework', module: MODULES.HOMEWORK },
+  { id: 'results', label: 'Results', module: MODULES.RESULTS },
   { id: 'fees', label: 'Fees', module: MODULES.FEES },
   { id: 'transport', label: 'Transport', module: MODULES.TRANSPORT },
   { id: 'notifications', label: 'Notifications', always: true },
@@ -174,6 +191,7 @@ function renderActiveTab() {
     case 'messages': return renderMessagesTab(container)
     case 'requests': return renderRequestsTab(container)
     case 'homework': return renderHomeworkTab(container)
+    case 'results': return renderResultsTab(container)
     case 'fees': return renderFeesTab(container)
     case 'transport': return renderTransportTab(container)
     case 'notifications': return renderNotificationsTab(container)
@@ -591,6 +609,62 @@ function renderHomeworkTab(container) {
         homework = await getHomeworkBySection(schoolId, childSection)
         renderHomeworkTab(container)
       } catch (err) { toast('Failed to mark: ' + err.message, 'error') }
+    })
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   RESULTS TAB (parent view — child's exam results with report card print)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderResultsTab(container) {
+  const sid = childStudentId || user.uid
+  if (!results.length) {
+    container.innerHTML = '<div class="dash-section"><div class="dash-empty">No published results yet.</div></div>'
+    return
+  }
+
+  const rows = results.map((exam, idx) => {
+    const myResults = exam.results?.[sid] || {}
+    const subjects = exam.subjects || Object.keys(myResults)
+    const totalObtained = subjects.reduce((sum, s) => sum + (myResults[s]?.marks || myResults[s] || 0), 0)
+    const totalMax = subjects.reduce((sum, s) => sum + (exam.maxMarks?.[s] || 100), 0)
+    const percentage = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : '—'
+    return `<tr>
+      <td>${esc(exam.name)}</td>
+      <td>${esc(exam.examType || '—')}</td>
+      <td>${totalObtained} / ${totalMax}</td>
+      <td>${percentage}%</td>
+      <td>${formatDate(exam.publishedAt || exam.createdAt)}</td>
+      <td><button class="btn btn-sm btn-secondary print-report-btn" data-exam-idx="${idx}" style="padding:2px 8px;font-size:11px;">Print</button></td>
+    </tr>`
+  }).join('')
+
+  container.innerHTML = `
+    <div class="dash-section">
+      <div class="dash-section-header"><h2>${childName ? childName + "'s" : "Child's"} Exam Results</h2></div>
+      <table class="dash-table">
+        <thead><tr><th>Exam</th><th>Type</th><th>Marks</th><th>%</th><th>Date</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `
+
+  container.querySelectorAll('.print-report-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exam = results[parseInt(btn.dataset.examIdx)]
+      const sec = sections.find(s => s.id === childSection)
+      const cls = classes.find(c => c.id === sec?.classId)
+      printReportCard({
+        student: { name: childName || 'Student', rollNumber: '', id: sid },
+        exam,
+        schoolName: school?.branding?.schoolName || school?.name || '',
+        schoolLogo: school?.branding?.logo || '',
+        className: cls?.name || '',
+        sectionName: sec?.displayName || '',
+        primaryColor: school?.branding?.primaryColor || '#2563eb',
+        academicYear: school?.academicYear || '',
+      })
     })
   })
 }

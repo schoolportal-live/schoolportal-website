@@ -119,8 +119,9 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════════
 
     match /schools/{schoolId} {
-      // Anyone authenticated can read school doc (needed for branding on login)
-      allow read: if request.auth != null;
+      // Public read for branding on login page (name, logo, colors are non-sensitive)
+      // Authenticated users always allowed; unauthenticated allowed for login branding
+      allow read: if true;
       // Platform admin or school_admin (legacy, during migration) can manage schools
       allow create, update, delete: if request.auth != null
                    && (isPlatformAdmin() || userRole() == 'school_admin');

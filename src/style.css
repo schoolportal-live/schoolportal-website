@@ -727,7 +727,8 @@ h1, h2, h3 {
   pointer-events: none;
 }
 .login-left-content { position: relative; }
-.login-left .logo   { color: var(--white); margin-bottom: 56px; }
+.login-left .logo   { color: var(--white); margin-bottom: 56px; display: flex; align-items: center; gap: 12px; }
+.login-school-logo  { width: 48px; height: 48px; border-radius: 10px; object-fit: contain; background: rgba(255,255,255,.15); padding: 4px; }
 .login-left h2 {
   font-size: clamp(30px, 3.5vw, 42px);
   font-weight: 800;

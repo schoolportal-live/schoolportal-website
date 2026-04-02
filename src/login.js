@@ -1,14 +1,81 @@
 /**
- * SchoolPortal — Login Page JS
+ * SchoolOS — Login Page JS
  * Handles: Firebase Auth login, role-based redirect,
- *          tab switching, show/hide password
+ *          tab switching, show/hide password, school branding
  */
 import { loginWithEmail } from './firebase/auth.js'
 import { getUserRole, ROLE_ROUTES } from './firebase/firestore.js'
 import { initGuard } from './firebase/guard.js'
+import { getSchool } from './firebase/schools.js'
+import { applyBranding } from './shared/branding.js'
 
 // ── Auth Guard: if already logged in, redirect to dashboard ───────────────
 initGuard({ requireAuth: false })
+
+// ── School Branding ──────────────────────────────────────────────────────
+// Detect school from URL: /login.html?school=greenfield-academy
+const urlParams = new URLSearchParams(window.location.search)
+const schoolSlug = urlParams.get('school')
+
+if (schoolSlug) {
+  loadSchoolBranding(schoolSlug)
+}
+
+async function loadSchoolBranding(slug) {
+  try {
+    const school = await getSchool(slug)
+    if (!school || !school.branding) return
+
+    const branding = school.branding
+
+    // Apply CSS custom properties (colors)
+    applyBranding(branding, { applyColors: true, applyLogo: true, applyName: true })
+
+    // Update login page title
+    document.title = `Log In — ${branding.schoolName || 'SchoolOS'}`
+
+    // Show school logo if available
+    const logoImg = document.getElementById('school-logo-img')
+    const logoMark = document.getElementById('logo-mark-fallback')
+    if (branding.logo && logoImg) {
+      logoImg.src = branding.logo
+      logoImg.alt = branding.schoolName || 'School Logo'
+      logoImg.style.display = 'block'
+      if (logoMark) logoMark.style.display = 'none'
+    }
+
+    // Update tagline for school-specific login
+    const tagline = document.getElementById('login-tagline')
+    if (tagline) {
+      tagline.textContent = `Welcome to ${branding.schoolName}`
+    }
+    const desc = document.getElementById('login-description')
+    if (desc) {
+      desc.textContent = `Sign in to access your school portal. Parents, teachers, and staff — enter your credentials below.`
+    }
+
+    // Apply primary color to login-left panel background
+    if (branding.primaryColor) {
+      const leftPanel = document.querySelector('.login-left')
+      if (leftPanel) {
+        leftPanel.style.background = `linear-gradient(135deg, ${branding.primaryColor} 0%, ${darkenHex(branding.primaryColor, 0.3)} 100%)`
+      }
+    }
+  } catch (err) {
+    // Silent fail — show default branding
+    console.warn('Could not load school branding:', err)
+  }
+}
+
+/** Simple hex darken for the gradient */
+function darkenHex(hex, factor) {
+  const match = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+  if (!match) return hex
+  const r = Math.round(parseInt(match[1], 16) * (1 - factor))
+  const g = Math.round(parseInt(match[2], 16) * (1 - factor))
+  const b = Math.round(parseInt(match[3], 16) * (1 - factor))
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
+}
 
 // ── DOM References ────────────────────────────────────────────────────────
 const form       = document.getElementById('login-form')

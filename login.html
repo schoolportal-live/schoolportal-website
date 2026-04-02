@@ -32,13 +32,14 @@
     ═══════════════════════════════════════════ -->
     <div class="login-left" aria-hidden="true">
       <div class="login-left-content">
-        <a href="/" class="logo">
-          <span class="logo-mark">SP</span>
-          SchoolPortal
+        <a href="/" class="logo" id="login-logo">
+          <img data-brand-logo src="" alt="" class="login-school-logo" id="school-logo-img" style="display:none;" />
+          <span class="logo-mark" id="logo-mark-fallback">SP</span>
+          <span data-brand-name id="login-brand-name">SchoolPortal</span>
         </a>
 
-        <h2>The smarter way to connect schools and parents</h2>
-        <p>Join thousands of schools already using SchoolPortal to communicate clearly, track progress, and build stronger communities.</p>
+        <h2 id="login-tagline">The smarter way to connect schools and parents</h2>
+        <p id="login-description">Join thousands of schools already using SchoolPortal to communicate clearly, track progress, and build stronger communities.</p>
 
         <div class="login-features">
           <div class="login-feature">
@@ -73,7 +74,7 @@
         </a>
 
         <h1>Welcome back</h1>
-        <p>Sign in to your SchoolPortal account</p>
+        <p id="login-subtitle">Sign in to your <span data-brand-name>SchoolPortal</span> account</p>
 
         <!-- Auth error banner (hidden by default) -->
         <div class="auth-error" id="auth-error" role="alert" aria-live="assertive"></div>
