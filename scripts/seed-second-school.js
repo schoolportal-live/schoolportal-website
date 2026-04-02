@@ -89,7 +89,7 @@ async function main() {
 
   // Sign in as platform admin
   console.log('Signing in as Platform Admin...')
-  const cred = await signInWithEmailAndPassword(auth, 'admin@schoolportal.live', 'Admin123!')
+  const cred = await signInWithEmailAndPassword(auth, 'shumyle@schoolportal.live', 'Shumyle2026!')
   const platformAdminUid = cred.user.uid
   console.log(`  ✓ Signed in (UID: ${platformAdminUid})`)
 

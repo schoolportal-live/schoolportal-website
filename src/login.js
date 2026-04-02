@@ -10,16 +10,18 @@ import { getSchool } from './firebase/schools.js'
 import { applyBranding } from './shared/branding.js'
 
 // ── Auth Guard: if already logged in, redirect to dashboard ───────────────
-initGuard({ requireAuth: false })
+// We await the guard so Firebase is fully initialized before loading branding
+const guardResult = initGuard({ requireAuth: false })
 
 // ── School Branding ──────────────────────────────────────────────────────
 // Detect school from URL: /login.html?school=greenfield-academy
 const urlParams = new URLSearchParams(window.location.search)
 const schoolSlug = urlParams.get('school')
 
-if (schoolSlug) {
-  loadSchoolBranding(schoolSlug)
-}
+// Wait for guard to finish (Firebase init), then apply branding
+guardResult.then(() => {
+  if (schoolSlug) loadSchoolBranding(schoolSlug)
+})
 
 async function loadSchoolBranding(slug) {
   try {
