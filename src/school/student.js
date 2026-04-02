@@ -37,7 +37,7 @@ const { user, role, userDoc, school } = await initGuard({
 const schoolId = userDoc.schoolId
 const activeModules = school?.activeModules || []
 const sectionId = userDoc.sectionId || ''
-const classId = userDoc.classId || ''
+let classId = userDoc.classId || ''
 const studentId = userDoc.studentDocId || user.uid
 
 // ── Header ──────────────────────────────────────────────────────────────
@@ -78,16 +78,26 @@ const ALL_TABS = [
 // ── Load Data ───────────────────────────────────────────────────────────
 async function loadAll() {
   try {
-    ;[sections, classes, homework, results, fees, timetable, transportRoutes, libraryTxns] = await Promise.all([
+    ;[sections, classes, homework, , fees, timetable, transportRoutes, libraryTxns] = await Promise.all([
       getSections(schoolId),
       getClasses(schoolId).catch(() => []),
       sectionId ? getHomeworkBySection(schoolId, sectionId).catch(() => []) : [],
-      classId ? getStudentResults(schoolId, classId).catch(() => []) : [],
+      Promise.resolve([]),  // results loaded below after classId resolved
       getFeesByStudent(schoolId, studentId).catch(() => []),
       sectionId ? getTimetable(schoolId, sectionId).catch(() => null) : null,
       getTransportRoutes(schoolId).catch(() => []),
       getLibraryTransactions(schoolId).catch(() => []),
     ])
+
+    // Derive classId from section if not set
+    if (!classId && sectionId && sections.length) {
+      const sec = sections.find(s => s.id === sectionId)
+      if (sec) classId = sec.classId
+    }
+    // Load results now that we have classId
+    if (classId) {
+      results = await getStudentResults(schoolId, classId).catch(() => [])
+    }
 
     // Load today's attendance
     const today = new Date().toISOString().split('T')[0]
