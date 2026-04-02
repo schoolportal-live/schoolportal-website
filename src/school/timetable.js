@@ -226,20 +226,7 @@ function detectConflicts() {
   const table = document.getElementById('schedule-table')
   const warnings = []
 
-  // Gather all slots
-  const slotsByDayPeriod = {}
-  table.querySelectorAll('.slot-teacher').forEach(select => {
-    const day = select.dataset.day
-    const period = select.dataset.period
-    const teacherId = select.value
-    if (!teacherId) return
-    const key = `${day}-${period}`
-    if (!slotsByDayPeriod[key]) slotsByDayPeriod[key] = []
-    slotsByDayPeriod[key].push({ teacherId, day, period })
-  })
-
-  // This only checks within the same section — cross-section detection needs all timetables
-  // For now just validate no duplicates within the grid
+  // Check for duplicate teacher assignments within the grid
   const teacherSlots = {}
   table.querySelectorAll('.slot-teacher').forEach(select => {
     const day = select.dataset.day
