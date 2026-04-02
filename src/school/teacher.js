@@ -18,7 +18,9 @@ import {
   createHomework, getHomeworkByTeacher, verifyHomework,
   createExam, getExamsByClass, saveExamResults, publishExamResults, getClasses,
   getCatalogue, createRequisition, getRequisitionsByTeacher,
+  createPaperRequisition, getPaperRequisitionsByTeacher,
   getTimetable, updateStudentDocuments,
+  getUpcomingEvents,
 } from '../firebase/schools.js'
 import { MODULES, MESSAGE_CATEGORIES, REQUEST_TYPES, ATTENDANCE_STATUSES, HOMEWORK_STATUSES } from '../shared/constants.js'
 import { esc, formatDate, timeAgo, toast, statusBadge } from '../shared/components.js'
@@ -62,11 +64,12 @@ let myRequests = []
 let myHomework = []
 let allClasses = []
 let myRequisitions = []
+let myPaperRequisitions = []
 
 // ── Load Data ───────────────────────────────────────────────────────────
 async function loadAll() {
   try {
-    ;[allSections, allUsers, messages, myRequests, myHomework, allClasses, myRequisitions] = await Promise.all([
+    ;[allSections, allUsers, messages, myRequests, myHomework, allClasses, myRequisitions, myPaperRequisitions] = await Promise.all([
       getSections(schoolId),
       getSchoolUsers(schoolId),
       getMessagesForUser(schoolId, user.uid),
@@ -74,6 +77,7 @@ async function loadAll() {
       getHomeworkByTeacher(schoolId, user.uid).catch(() => []),
       getClasses(schoolId).catch(() => []),
       getRequisitionsByTeacher(schoolId, user.uid).catch(() => []),
+      getPaperRequisitionsByTeacher(schoolId, user.uid).catch(() => []),
     ])
 
     // Get sections this teacher is assigned to
@@ -107,6 +111,30 @@ function updateStats() {
   document.getElementById('stat-sections').textContent = mySections.length
   document.getElementById('stat-students').textContent = myStudents.length
   document.getElementById('stat-subjects').textContent = subjects.length
+
+  // Upcoming events widget
+  if (activeModules.includes(MODULES.EVENTS)) {
+    getUpcomingEvents(schoolId, 14).then(upcoming => {
+      const widget = document.getElementById('upcoming-events-widget')
+      if (!widget) return
+      if (upcoming.length === 0) { widget.innerHTML = ''; return }
+      const items = upcoming.slice(0, 5).map(e => {
+        const cat = e.category || e.eventType || 'general'
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-200);">
+          <span class="event-cal-dot ${esc(cat)}"></span>
+          <span style="font-size:13px;font-weight:500;">${esc(e.title)}</span>
+          <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">${formatDate(e.date)}${e.time ? ' ' + esc(e.time) : ''}</span>
+        </div>`
+      }).join('')
+      widget.innerHTML = `<div class="dash-card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong style="font-size:14px;">Upcoming Events</strong>
+          <span style="font-size:12px;color:var(--text-muted);">Next 14 days</span>
+        </div>
+        ${items}
+      </div>`
+    }).catch(() => {})
+  }
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────
@@ -119,6 +147,7 @@ const ALL_TABS = [
   { id: 'results', label: 'Results', module: MODULES.RESULTS },
   { id: 'messages', label: 'Messages', module: MODULES.COMMUNICATION },
   { id: 'requisitions', label: 'Requisitions', module: MODULES.REQUISITION },
+  { id: 'paper', label: 'Paper Calc', module: MODULES.REQUISITION },
   { id: 'timetable', label: 'Timetable', module: MODULES.TIMETABLE },
   { id: 'documents', label: 'Documents', module: MODULES.DOCUMENTS },
 ]
@@ -155,6 +184,7 @@ function renderActiveTab() {
     case 'results': return renderResultsTab(container)
     case 'messages': return renderMessagesTab(container)
     case 'requisitions': return renderRequisitionsTab(container)
+    case 'paper': return renderPaperCalcTab(container)
     case 'timetable': return renderTimetableTab(container)
     case 'documents': return renderDocumentsTab(container)
     default: return renderMySections(container)
@@ -862,6 +892,252 @@ function renderRequisitionsTab(container) {
       toast('Requisition submitted!', 'success')
       myRequisitions = await getRequisitionsByTeacher(schoolId, user.uid)
       renderRequisitionsTab(container)
+    } catch (err) { toast('Failed: ' + err.message, 'error') }
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   PAPER CALC TAB (A4 Paper Requisition Calculator)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderPaperCalcTab(container) {
+  if (mySections.length === 0) {
+    container.innerHTML = '<div class="dash-section"><div class="dash-empty">No sections assigned.</div></div>'
+    return
+  }
+
+  const EXAM_DEFAULTS = { unit: 2, midterm: 4, final: 6, custom: 4 }
+
+  const sectionOptions = mySections.map(s =>
+    `<option value="${esc(s.id)}">${esc(s.displayName)}</option>`
+  ).join('')
+
+  const historyRows = myPaperRequisitions.map(r => `
+    <tr>
+      <td>${esc(r.sectionName || '—')}</td>
+      <td>${esc(r.examType || '—')}</td>
+      <td>${(r.subjects || []).length}</td>
+      <td><strong>${r.adjustedSheets || r.totalSheets || 0}</strong></td>
+      <td>${statusBadge(r.status)}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${r.createdAt ? timeAgo(r.createdAt) : '—'}</td>
+    </tr>
+  `).join('')
+
+  container.innerHTML = `
+    <div class="dash-section">
+      <div class="dash-section-header"><h2>A4 Paper Requisition Calculator</h2></div>
+
+      <form id="paper-calc-form" class="dash-form" style="background:var(--gray-50);padding:16px;border-radius:var(--radius-sm);margin-bottom:24px;">
+        <div class="dash-form-row-2">
+          <div class="form-group">
+            <label for="paper-section">Section *</label>
+            <select id="paper-section" required>${sectionOptions}</select>
+          </div>
+          <div class="form-group">
+            <label for="paper-exam-type">Exam Type *</label>
+            <select id="paper-exam-type" required>
+              <option value="unit">Unit Test (2 pages/student)</option>
+              <option value="midterm">Mid-Term (4 pages/student)</option>
+              <option value="final">Final (6 pages/student)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dash-form-row-2">
+          <div class="form-group">
+            <label for="paper-exam-name">Exam Name</label>
+            <input type="text" id="paper-exam-name" placeholder="e.g. Unit Test 3 — April 2026" />
+          </div>
+          <div class="form-group">
+            <label for="paper-student-count">Students in Section</label>
+            <input type="number" id="paper-student-count" min="0" value="0" readonly style="background:var(--gray-100);" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="paper-subjects">Subjects (comma-separated) *</label>
+          <input type="text" id="paper-subjects" required placeholder="e.g. Math, English, Science" />
+        </div>
+
+        <div class="dash-form-row-2">
+          <div class="form-group">
+            <label for="paper-pages">Pages per Student per Subject</label>
+            <input type="number" id="paper-pages" min="1" max="50" value="${EXAM_DEFAULTS.unit}" />
+          </div>
+          <div class="form-group">
+            <label for="paper-wastage">Extra Pages % (wastage): <span id="paper-wastage-val">10</span>%</label>
+            <input type="range" id="paper-wastage" min="5" max="20" value="10" style="width:100%;" />
+          </div>
+        </div>
+
+        <div id="paper-calc-preview" style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;">
+          <p style="color:var(--text-muted);font-size:13px;">Select a section and enter subjects to see the calculation.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="paper-notes">Notes (optional)</label>
+          <textarea id="paper-notes" rows="2" placeholder="Any additional notes..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-sm">Submit Paper Requisition</button>
+      </form>
+
+      ${myPaperRequisitions.length > 0 ? `
+        <h3 style="margin-bottom:12px;">My Paper Requisitions</h3>
+        <table class="dash-table">
+          <thead><tr><th>Section</th><th>Exam</th><th>Subjects</th><th>Sheets</th><th>Status</th><th>Submitted</th></tr></thead>
+          <tbody>${historyRows}</tbody>
+        </table>
+      ` : ''}
+    </div>
+  `
+
+  // ── Section change: auto-load student count ────────────────────────
+  const sectionSelect = document.getElementById('paper-section')
+  const studentCountInput = document.getElementById('paper-student-count')
+
+  async function loadStudentCount() {
+    const secId = sectionSelect.value
+    if (!secId) return
+    try {
+      const students = await getStudentsBySection(schoolId, secId)
+      studentCountInput.value = students.length
+    } catch { studentCountInput.value = 0 }
+    recalculate()
+  }
+  sectionSelect.addEventListener('change', loadStudentCount)
+  loadStudentCount()  // initial load
+
+  // ── Exam type change: update default pages ─────────────────────────
+  const examTypeSelect = document.getElementById('paper-exam-type')
+  const pagesInput = document.getElementById('paper-pages')
+
+  examTypeSelect.addEventListener('change', () => {
+    const type = examTypeSelect.value
+    pagesInput.value = EXAM_DEFAULTS[type] || 4
+    pagesInput.readOnly = type !== 'custom'
+    recalculate()
+  })
+  pagesInput.readOnly = true  // default is not custom
+
+  // ── Wastage slider ─────────────────────────────────────────────────
+  const wastageSlider = document.getElementById('paper-wastage')
+  const wastageVal = document.getElementById('paper-wastage-val')
+  wastageSlider.addEventListener('input', () => {
+    wastageVal.textContent = wastageSlider.value
+    recalculate()
+  })
+
+  // ── Live recalculation ─────────────────────────────────────────────
+  document.getElementById('paper-subjects').addEventListener('input', recalculate)
+  pagesInput.addEventListener('input', recalculate)
+
+  function recalculate() {
+    const preview = document.getElementById('paper-calc-preview')
+    const subjectsRaw = document.getElementById('paper-subjects').value
+    const subjects = subjectsRaw.split(',').map(s => s.trim()).filter(Boolean)
+    const studentCount = parseInt(studentCountInput.value) || 0
+    const pagesPerSubject = parseInt(pagesInput.value) || 4
+    const wastage = parseInt(wastageSlider.value) || 10
+
+    if (subjects.length === 0 || studentCount === 0) {
+      preview.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Select a section and enter subjects to see the calculation.</p>'
+      return
+    }
+
+    const calculations = subjects.map(subject => ({
+      subject,
+      students: studentCount,
+      pages: pagesPerSubject,
+      total: studentCount * pagesPerSubject,
+    }))
+
+    const grandTotal = calculations.reduce((sum, c) => sum + c.total, 0)
+    const wastageSheets = Math.ceil(grandTotal * wastage / 100)
+    const finalSheets = grandTotal + wastageSheets
+    const reams = (finalSheets / 500).toFixed(2)
+
+    const calcRows = calculations.map(c => `
+      <tr>
+        <td>${esc(c.subject)}</td>
+        <td>${c.students}</td>
+        <td>${c.pages}</td>
+        <td><strong>${c.total}</strong></td>
+      </tr>
+    `).join('')
+
+    preview.innerHTML = `
+      <table class="dash-table" style="margin-bottom:12px;">
+        <thead><tr><th>Subject</th><th>Students</th><th>Pages/Student</th><th>Subtotal</th></tr></thead>
+        <tbody>
+          ${calcRows}
+          <tr style="border-top:2px solid var(--gray-300);">
+            <td colspan="3" style="text-align:right;"><strong>Grand Total</strong></td>
+            <td><strong>${grandTotal}</strong></td>
+          </tr>
+          <tr>
+            <td colspan="3" style="text-align:right;color:var(--text-muted);">+ Wastage (${wastage}%)</td>
+            <td>${wastageSheets}</td>
+          </tr>
+          <tr style="background:var(--gray-50);">
+            <td colspan="3" style="text-align:right;"><strong>Final Sheets Needed</strong></td>
+            <td><strong style="font-size:18px;color:var(--brand-primary);">${finalSheets}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:13px;color:var(--text-muted);margin:0;">That is approximately <strong>${reams} reams</strong> (1 ream = 500 sheets).</p>
+    `
+  }
+
+  // ── Form submit ────────────────────────────────────────────────────
+  document.getElementById('paper-calc-form').addEventListener('submit', async (e) => {
+    e.preventDefault()
+
+    const secId = sectionSelect.value
+    const section = mySections.find(s => s.id === secId)
+    const subjectsRaw = document.getElementById('paper-subjects').value
+    const subjects = subjectsRaw.split(',').map(s => s.trim()).filter(Boolean)
+    const studentCount = parseInt(studentCountInput.value) || 0
+    const pagesPerSubject = parseInt(pagesInput.value) || 4
+    const wastage = parseInt(wastageSlider.value) || 10
+    const examType = examTypeSelect.value
+    const examName = document.getElementById('paper-exam-name').value.trim()
+    const notes = document.getElementById('paper-notes').value.trim()
+
+    if (subjects.length === 0) { toast('Enter at least one subject', 'error'); return }
+    if (studentCount === 0) { toast('No students found for this section', 'error'); return }
+
+    const calculations = subjects.map(subject => ({
+      subject,
+      students: studentCount,
+      pages: pagesPerSubject,
+      total: studentCount * pagesPerSubject,
+    }))
+
+    const grandTotal = calculations.reduce((sum, c) => sum + c.total, 0)
+    const wastageSheets = Math.ceil(grandTotal * wastage / 100)
+    const finalSheets = grandTotal + wastageSheets
+
+    try {
+      await createPaperRequisition(schoolId, {
+        teacherId: user.uid,
+        teacherName: displayName,
+        sectionId: secId,
+        sectionName: section ? section.displayName : '',
+        examName,
+        examType,
+        subjects,
+        studentCount,
+        pagesPerStudent: pagesPerSubject,
+        calculations,
+        totalSheets: grandTotal,
+        adjustedSheets: finalSheets,
+        notes,
+      })
+      toast('Paper requisition submitted!', 'success')
+      myPaperRequisitions = await getPaperRequisitionsByTeacher(schoolId, user.uid)
+      renderPaperCalcTab(container)
     } catch (err) { toast('Failed: ' + err.message, 'error') }
   })
 }

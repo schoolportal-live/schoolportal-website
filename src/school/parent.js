@@ -21,6 +21,7 @@ import {
   getTransportRoutes, createTransportRequest,
   getFeesByStudent,
   getStudentResults, getClasses,
+  getUpcomingEvents,
 } from '../firebase/schools.js'
 import { loadHierarchy, buildNotificationChain, buildEscalationChain } from '../shared/hierarchy.js'
 import { getHierarchyLoaders } from '../firebase/schools.js'
@@ -158,6 +159,7 @@ const ALL_TABS = [
   { id: 'results', label: 'Results', module: MODULES.RESULTS },
   { id: 'fees', label: 'Fees', module: MODULES.FEES },
   { id: 'transport', label: 'Transport', module: MODULES.TRANSPORT },
+  { id: 'events', label: 'Events', module: MODULES.EVENTS },
   { id: 'notifications', label: 'Notifications', always: true },
 ]
 
@@ -194,6 +196,7 @@ function renderActiveTab() {
     case 'results': return renderResultsTab(container)
     case 'fees': return renderFeesTab(container)
     case 'transport': return renderTransportTab(container)
+    case 'events': return renderEventsTab(container)
     case 'notifications': return renderNotificationsTab(container)
   }
 }
@@ -847,6 +850,39 @@ function renderNotificationsTab(container) {
     document.getElementById('stat-notifications').textContent = 0
     renderNotificationsTab(container)
     toast('All notifications marked as read', 'success')
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   EVENTS TAB
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderEventsTab(container) {
+  container.innerHTML = '<div class="dash-section"><div class="dash-empty">Loading events...</div></div>'
+  getUpcomingEvents(schoolId, 60).then(upcoming => {
+    // Filter for parent-relevant events
+    const filtered = upcoming.filter(e => !e.targetAudience || e.targetAudience === 'all' || e.targetAudience === 'parents')
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="dash-section"><div class="dash-empty">No upcoming events.</div></div>'
+      return
+    }
+    const rows = filtered.map(e => {
+      const cat = e.category || e.eventType || 'general'
+      return `<tr>
+        <td><span class="event-cal-dot ${esc(cat)}"></span> ${esc(e.title)}</td>
+        <td>${formatDate(e.date)}</td>
+        <td>${esc(e.time || '—')}</td>
+        <td>${esc(cat)}</td>
+        <td>${esc(e.description || '—')}</td>
+      </tr>`
+    }).join('')
+    container.innerHTML = `<div class="dash-section">
+      <div class="dash-section-header"><h2>Upcoming Events (${filtered.length})</h2></div>
+      <table class="dash-table"><thead><tr><th>Event</th><th>Date</th><th>Time</th><th>Category</th><th>Details</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`
+  }).catch(() => {
+    container.innerHTML = '<div class="dash-section"><div class="dash-empty">Could not load events.</div></div>'
   })
 }
 

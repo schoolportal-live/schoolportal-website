@@ -15,6 +15,7 @@ import {
   getRequestsForUser, updateRequestStatus, markRequestRead,
   getAllRequisitions, reviewRequisition,
   getAttendance, getHomeworkBySection, getTimetable,
+  getUpcomingEvents,
 } from '../firebase/schools.js'
 import { MODULES, MESSAGE_CATEGORIES, REQUEST_TYPES } from '../shared/constants.js'
 import { esc, formatDate, timeAgo, toast, statusBadge } from '../shared/components.js'
@@ -85,6 +86,30 @@ function updateStats() {
   const myStudents = students.filter(s => managedSectionIds.includes(s.sectionId))
   document.getElementById('stat-students').textContent = myStudents.length
   document.getElementById('stat-pending').textContent = '0'
+
+  // Upcoming events widget
+  if (activeModules.includes(MODULES.EVENTS)) {
+    getUpcomingEvents(schoolId, 14).then(upcoming => {
+      const widget = document.getElementById('upcoming-events-widget')
+      if (!widget) return
+      if (upcoming.length === 0) { widget.innerHTML = ''; return }
+      const items = upcoming.slice(0, 5).map(e => {
+        const cat = e.category || e.eventType || 'general'
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-200);">
+          <span class="event-cal-dot ${esc(cat)}"></span>
+          <span style="font-size:13px;font-weight:500;">${esc(e.title)}</span>
+          <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">${formatDate(e.date)}${e.time ? ' ' + esc(e.time) : ''}</span>
+        </div>`
+      }).join('')
+      widget.innerHTML = `<div class="dash-card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong style="font-size:14px;">Upcoming Events</strong>
+          <span style="font-size:12px;color:var(--text-muted);">Next 14 days</span>
+        </div>
+        ${items}
+      </div>`
+    }).catch(() => {})
+  }
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────

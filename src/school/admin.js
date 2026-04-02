@@ -18,9 +18,10 @@ import {
   getAllRequests, updateRequestStatus, markRequestRead,
   getOutstandingFees, getFeesByMonth, recordPayment, bulkCreateFees,
   getAllRequisitions, approveRequisition, getCatalogue, addCatalogueItem,
+  getPaperRequisitions, approvePaperRequisition,
   getTransportRoutes, getTransportRequests, createTransportRoute,
   getLibraryBooks, getLibraryTransactions, addLibraryBook, returnBook,
-  getSchoolEvents, createSchoolEvent,
+  getSchoolEvents, createSchoolEvent, updateSchoolEvent, deleteSchoolEvent, getEventsByMonth,
 } from '../firebase/schools.js'
 import { MODULES, MESSAGE_CATEGORIES, REQUEST_TYPES } from '../shared/constants.js'
 import {
@@ -81,11 +82,12 @@ let transportRequests = []
 let libraryBooks = []
 let libraryTxns = []
 let events = []
+let paperRequisitions = []
 
 // ── Load Data ───────────────────────────────────────────────────────────
 async function loadAll() {
   try {
-    ;[sections, users, students, classes, allMessages, allReqs, outstandingFees, allRequisitions, catalogue, transportRoutes, transportRequests, libraryBooks, libraryTxns, events] = await Promise.all([
+    ;[sections, users, students, classes, allMessages, allReqs, outstandingFees, allRequisitions, catalogue, transportRoutes, transportRequests, libraryBooks, libraryTxns, events, paperRequisitions] = await Promise.all([
       getSections(schoolId),
       getSchoolUsers(schoolId),
       getAllStudents(schoolId),
@@ -100,6 +102,7 @@ async function loadAll() {
       getLibraryBooks(schoolId).catch(() => []),
       getLibraryTransactions(schoolId).catch(() => []),
       getSchoolEvents(schoolId).catch(() => []),
+      getPaperRequisitions(schoolId).catch(() => []),
     ])
     updateStats()
     renderTabs()
@@ -190,7 +193,7 @@ function renderActiveTab() {
     case 'catalogue': return renderCatalogueTab(container)
     case 'transport': return renderTransportTab(container)
     case 'library': return renderLibraryTab(container)
-    case 'events': return renderEventsTab(container)
+    case 'events': return loadMonthEvents().then(() => renderEventsTab(container))
     default: return renderOverview(container)
   }
 }
@@ -554,7 +557,10 @@ function renderAllRequests(container) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function renderRequisitionsTab(container) {
-  if (allRequisitions.length === 0) {
+  const hasReqs = allRequisitions.length > 0
+  const hasPaper = paperRequisitions.length > 0
+
+  if (!hasReqs && !hasPaper) {
     container.innerHTML = '<div class="dash-section"><div class="dash-empty">No requisitions submitted yet.</div></div>'
     return
   }
@@ -579,7 +585,30 @@ function renderRequisitionsTab(container) {
     `
   }).join('')
 
+  const paperRows = paperRequisitions.map(r => {
+    const isPending = r.status === 'submitted' || r.status === 'reviewed'
+    const reams = ((r.adjustedSheets || r.totalSheets || 0) / 500).toFixed(1)
+    return `
+      <tr>
+        <td><strong>${esc(r.teacherName)}</strong></td>
+        <td>${esc(r.sectionName || '—')}</td>
+        <td>${esc(r.examType || '—')}</td>
+        <td>${(r.subjects || []).length} subject(s)</td>
+        <td><strong>${r.adjustedSheets || r.totalSheets || 0}</strong> <span style="font-size:11px;color:var(--text-muted);">(${reams} reams)</span></td>
+        <td>${statusBadge(r.status)}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.createdAt ? timeAgo(r.createdAt) : '—'}</td>
+        <td>
+          ${isPending ? `
+            <button class="btn btn-sm paper-req-approve" data-id="${esc(r.id)}" data-action="approved" style="background:var(--green);color:#fff;padding:2px 8px;font-size:11px;">Approve</button>
+            <button class="btn btn-sm paper-req-approve" data-id="${esc(r.id)}" data-action="dispatched" style="padding:2px 8px;font-size:11px;">Dispatch</button>
+          ` : ''}
+        </td>
+      </tr>
+    `
+  }).join('')
+
   container.innerHTML = `
+    ${hasReqs ? `
     <div class="dash-section">
       <div class="dash-section-header"><h2>All Requisitions (${allRequisitions.length})</h2></div>
       <table class="dash-table">
@@ -587,6 +616,17 @@ function renderRequisitionsTab(container) {
         <tbody>${rows}</tbody>
       </table>
     </div>
+    ` : ''}
+
+    ${hasPaper ? `
+    <div class="dash-section" style="margin-top:24px;">
+      <div class="dash-section-header"><h2>Paper Requisitions (${paperRequisitions.length})</h2></div>
+      <table class="dash-table">
+        <thead><tr><th>Teacher</th><th>Section</th><th>Exam</th><th>Subjects</th><th>Sheets</th><th>Status</th><th>Submitted</th><th>Action</th></tr></thead>
+        <tbody>${paperRows}</tbody>
+      </table>
+    </div>
+    ` : ''}
   `
 
   container.querySelectorAll('.req-approve').forEach(btn => {
@@ -595,6 +635,17 @@ function renderRequisitionsTab(container) {
         await approveRequisition(schoolId, btn.dataset.id, btn.dataset.action)
         toast(`Requisition ${btn.dataset.action}`, 'success')
         allRequisitions = await getAllRequisitions(schoolId)
+        renderRequisitionsTab(container)
+      } catch (err) { toast('Failed', 'error') }
+    })
+  })
+
+  container.querySelectorAll('.paper-req-approve').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await approvePaperRequisition(schoolId, btn.dataset.id, btn.dataset.action)
+        toast(`Paper requisition ${btn.dataset.action}`, 'success')
+        paperRequisitions = await getPaperRequisitions(schoolId)
         renderRequisitionsTab(container)
       } catch (err) { toast('Failed', 'error') }
     })
@@ -831,80 +882,294 @@ function renderLibraryTab(container) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//   EVENTS TAB
+//   EVENTS TAB — Full Calendar View
 // ═══════════════════════════════════════════════════════════════════════════
 
+const EVENT_CATEGORIES = [
+  { value: 'academic', label: 'Academic' },
+  { value: 'exam', label: 'Exam' },
+  { value: 'holiday', label: 'Holiday' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'cultural', label: 'Cultural' },
+  { value: 'meeting', label: 'Meeting' },
+  { value: 'requisition', label: 'Requisition' },
+  { value: 'general', label: 'General' },
+]
+
+let calendarMonth = new Date().getMonth()     // 0-indexed
+let calendarYear = new Date().getFullYear()
+let monthEvents = []
+let selectedDay = null
+let editingEventId = null
+
+function yearMonthStr(y, m) {
+  return `${y}-${String(m + 1).padStart(2, '0')}`
+}
+
+async function loadMonthEvents() {
+  try {
+    monthEvents = await getEventsByMonth(schoolId, yearMonthStr(calendarYear, calendarMonth))
+  } catch {
+    monthEvents = events.filter(e => {
+      if (!e.date) return false
+      const [ey, em] = e.date.split('-').map(Number)
+      return ey === calendarYear && em === calendarMonth + 1
+    })
+  }
+}
+
+function buildCalendarGrid() {
+  const firstDay = new Date(calendarYear, calendarMonth, 1)
+  // Monday=0 ... Sunday=6
+  let startDow = firstDay.getDay() - 1
+  if (startDow < 0) startDow = 6
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate()
+  const prevMonthDays = new Date(calendarYear, calendarMonth, 0).getDate()
+
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+
+  const headers = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    .map(d => `<div class="event-cal-header">${d}</div>`).join('')
+
+  const cells = []
+  // Previous month trailing days
+  for (let i = startDow - 1; i >= 0; i--) {
+    const day = prevMonthDays - i
+    cells.push(`<div class="event-cal-day other-month"><span class="day-num">${day}</span></div>`)
+  }
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    const dayEvents = monthEvents.filter(e => e.date === dateStr)
+    const isToday = dateStr === todayStr
+    const isSelected = selectedDay === dateStr
+    const dots = dayEvents.map(e => {
+      const cat = e.category || e.eventType || 'general'
+      return `<span class="event-cal-dot ${esc(cat)}" title="${esc(e.title)}"></span>`
+    }).join('')
+    cells.push(`<div class="event-cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" data-date="${dateStr}"><span class="day-num">${d}</span><div>${dots}</div></div>`)
+  }
+  // Next month leading days
+  const remaining = 7 - (cells.length % 7)
+  if (remaining < 7) {
+    for (let i = 1; i <= remaining; i++) {
+      cells.push(`<div class="event-cal-day other-month"><span class="day-num">${i}</span></div>`)
+    }
+  }
+
+  return `<div class="event-calendar">${headers}${cells.join('')}</div>`
+}
+
 function renderEventsTab(container) {
-  const rows = events.map(e => `
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const categoryOpts = EVENT_CATEGORIES.map(c =>
+    `<option value="${esc(c.value)}"${editingEventId ? '' : ''}>${esc(c.label)}</option>`
+  ).join('')
+
+  const calendarGrid = buildCalendarGrid()
+
+  // Events list for selected day or full month
+  const displayEvents = selectedDay
+    ? monthEvents.filter(e => e.date === selectedDay)
+    : monthEvents
+
+  const rows = displayEvents.map(e => {
+    const cat = e.category || e.eventType || 'general'
+    return `
     <tr>
-      <td><strong>${esc(e.title)}</strong></td>
+      <td><span class="event-cal-dot ${esc(cat)}" style="vertical-align:middle;"></span> <strong>${esc(e.title)}</strong></td>
       <td>${formatDate(e.date)}</td>
       <td>${esc(e.time || '—')}</td>
-      <td>${esc(e.eventType || 'general')}</td>
-      <td>${esc(e.location || '—')}</td>
+      <td>${esc(cat)}</td>
+      <td>${esc(e.targetAudience || 'all')}</td>
       <td>${e.requiresRequisition ? '<span style="color:var(--brand-primary);">Yes</span>' : '—'}</td>
-    </tr>
-  `).join('')
+      <td>${e.approvalRequired ? statusBadge(e.approvalStatus || 'pending') : '—'}</td>
+      <td>
+        <button class="btn btn-sm edit-event" data-id="${esc(e.id)}" style="margin-right:4px;">Edit</button>
+        <button class="btn btn-sm btn-danger delete-event" data-id="${esc(e.id)}">Delete</button>
+      </td>
+    </tr>`
+  }).join('')
+
+  // Pre-fill form if editing
+  const editEvt = editingEventId ? monthEvents.find(e => e.id === editingEventId) : null
 
   container.innerHTML = `
     <div class="dash-section">
-      <div class="dash-section-header"><h2>Add Event</h2></div>
+      <div class="dash-section-header">
+        <h2>${editEvt ? 'Edit Event' : 'Add Event'}</h2>
+        ${editEvt ? '<button class="btn btn-sm" id="cancel-edit-event">Cancel Edit</button>' : ''}
+      </div>
       <form id="event-form" class="dash-form" style="background:var(--gray-50);padding:16px;border-radius:var(--radius-sm);margin-bottom:24px;">
         <div class="dash-form-row-2">
-          <div class="form-group"><label>Title *</label><input type="text" id="event-title" required placeholder="Event title"></div>
-          <div class="form-group"><label>Date *</label><input type="date" id="event-date" required></div>
+          <div class="form-group"><label>Title *</label><input type="text" id="event-title" required placeholder="Event title" value="${editEvt ? esc(editEvt.title) : ''}"></div>
+          <div class="form-group"><label>Date *</label><input type="date" id="event-date" required value="${editEvt ? esc(editEvt.date) : (selectedDay || '')}"></div>
         </div>
+        <div class="form-group"><label>Description</label><textarea id="event-desc" rows="2" placeholder="Optional description">${editEvt ? esc(editEvt.description || '') : ''}</textarea></div>
         <div class="dash-form-row-2">
-          <div class="form-group"><label>Time</label><input type="time" id="event-time"></div>
-          <div class="form-group"><label>Location</label><input type="text" id="event-location" placeholder="e.g. Main Hall"></div>
+          <div class="form-group"><label>Time</label><input type="time" id="event-time" value="${editEvt ? esc(editEvt.time || '') : ''}"></div>
+          <div class="form-group"><label>Location</label><input type="text" id="event-location" placeholder="e.g. Main Hall" value="${editEvt ? esc(editEvt.location || '') : ''}"></div>
         </div>
         <div class="dash-form-row-2">
           <div class="form-group">
-            <label>Event Type</label>
-            <select id="event-type">
-              <option value="general">General</option>
-              <option value="exam">Exam</option>
-              <option value="holiday">Holiday</option>
-              <option value="meeting">Meeting</option>
-              <option value="sports">Sports</option>
-              <option value="cultural">Cultural</option>
+            <label>Category</label>
+            <select id="event-category">${categoryOpts}</select>
+          </div>
+          <div class="form-group">
+            <label>Target Audience</label>
+            <select id="event-audience">
+              <option value="all">All</option>
+              <option value="staff">Staff Only</option>
+              <option value="parents">Parents Only</option>
+              <option value="students">Students Only</option>
             </select>
           </div>
-          <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:20px;">
-            <input type="checkbox" id="event-req"> <label for="event-req" style="margin:0;">Requires Requisition</label>
+        </div>
+        <div class="dash-form-row-2">
+          <div class="form-group"><label>Reminder (days before)</label><input type="number" id="event-reminder" min="0" max="90" value="${editEvt ? (editEvt.reminderDays ?? 7) : 7}"></div>
+          <div class="form-group" style="display:flex;align-items:center;gap:16px;padding-top:20px;">
+            <label style="margin:0;display:flex;align-items:center;gap:4px;">
+              <input type="checkbox" id="event-req"${editEvt && editEvt.requiresRequisition ? ' checked' : ''}> Requires Requisition
+            </label>
+            <label style="margin:0;display:flex;align-items:center;gap:4px;">
+              <input type="checkbox" id="event-approval"${editEvt && editEvt.approvalRequired ? ' checked' : ''}> Requires Approval
+            </label>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm">Add Event</button>
+        <button type="submit" class="btn btn-primary btn-sm">${editEvt ? 'Update Event' : 'Add Event'}</button>
       </form>
+    </div>
 
-      <div class="dash-section-header"><h2>Events (${events.length})</h2></div>
-      ${events.length > 0 ? `
-        <table class="dash-table"><thead><tr><th>Title</th><th>Date</th><th>Time</th><th>Type</th><th>Location</th><th>Requisition</th></tr></thead>
+    <div class="dash-section">
+      <div class="dash-section-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>${monthNames[calendarMonth]} ${calendarYear}</h2>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" id="cal-prev">&larr; Prev</button>
+          <button class="btn btn-sm" id="cal-today">Today</button>
+          <button class="btn btn-sm" id="cal-next">Next &rarr;</button>
+        </div>
+      </div>
+      ${calendarGrid}
+    </div>
+
+    <div class="dash-section" style="margin-top:16px;">
+      <div class="dash-section-header">
+        <h2>${selectedDay ? 'Events on ' + formatDate(selectedDay) : 'All Events This Month'} (${displayEvents.length})</h2>
+        ${selectedDay ? '<button class="btn btn-sm" id="clear-day-filter">Show All</button>' : ''}
+      </div>
+      ${displayEvents.length > 0 ? `
+        <table class="dash-table"><thead><tr><th>Title</th><th>Date</th><th>Time</th><th>Category</th><th>Audience</th><th>Requisition</th><th>Approval</th><th>Actions</th></tr></thead>
         <tbody>${rows}</tbody></table>
-      ` : '<div class="dash-empty">No events scheduled.</div>'}
+      ` : '<div class="dash-empty">No events' + (selectedDay ? ' on this day' : ' this month') + '.</div>'}
     </div>
   `
 
+  // Set select values after rendering
+  if (editEvt) {
+    const catSel = document.getElementById('event-category')
+    if (catSel) catSel.value = editEvt.category || editEvt.eventType || 'general'
+    const audSel = document.getElementById('event-audience')
+    if (audSel) audSel.value = editEvt.targetAudience || 'all'
+  }
+
+  // Calendar navigation
+  document.getElementById('cal-prev').addEventListener('click', async () => {
+    calendarMonth--
+    if (calendarMonth < 0) { calendarMonth = 11; calendarYear-- }
+    selectedDay = null
+    await loadMonthEvents()
+    renderEventsTab(container)
+  })
+  document.getElementById('cal-next').addEventListener('click', async () => {
+    calendarMonth++
+    if (calendarMonth > 11) { calendarMonth = 0; calendarYear++ }
+    selectedDay = null
+    await loadMonthEvents()
+    renderEventsTab(container)
+  })
+  document.getElementById('cal-today').addEventListener('click', async () => {
+    const now = new Date()
+    calendarMonth = now.getMonth()
+    calendarYear = now.getFullYear()
+    selectedDay = null
+    await loadMonthEvents()
+    renderEventsTab(container)
+  })
+
+  // Day click
+  container.querySelectorAll('.event-cal-day:not(.other-month)').forEach(cell => {
+    cell.addEventListener('click', () => {
+      selectedDay = cell.dataset.date || null
+      renderEventsTab(container)
+    })
+  })
+
+  // Clear day filter
+  const clearBtn = document.getElementById('clear-day-filter')
+  if (clearBtn) clearBtn.addEventListener('click', () => { selectedDay = null; renderEventsTab(container) })
+
+  // Cancel edit
+  const cancelBtn = document.getElementById('cancel-edit-event')
+  if (cancelBtn) cancelBtn.addEventListener('click', () => { editingEventId = null; renderEventsTab(container) })
+
+  // Form submit (add or update)
   document.getElementById('event-form').addEventListener('submit', async (ev) => {
     ev.preventDefault()
     const title = document.getElementById('event-title').value.trim()
     const date = document.getElementById('event-date').value
     if (!title || !date) return
+    const payload = {
+      title, date,
+      description: document.getElementById('event-desc').value.trim(),
+      time: document.getElementById('event-time').value,
+      location: document.getElementById('event-location').value.trim(),
+      eventType: document.getElementById('event-category').value,
+      category: document.getElementById('event-category').value,
+      targetAudience: document.getElementById('event-audience').value,
+      reminderDays: parseInt(document.getElementById('event-reminder').value) || 7,
+      requiresRequisition: document.getElementById('event-req').checked,
+      requiresApproval: document.getElementById('event-approval').checked,
+      approvalRequired: document.getElementById('event-approval').checked,
+    }
     try {
-      await createSchoolEvent(schoolId, {
-        title, date,
-        time: document.getElementById('event-time').value,
-        location: document.getElementById('event-location').value.trim(),
-        eventType: document.getElementById('event-type').value,
-        requiresRequisition: document.getElementById('event-req').checked,
-      })
-      toast('Event added', 'success')
-      document.getElementById('event-form').reset()
+      if (editingEventId) {
+        await updateSchoolEvent(schoolId, editingEventId, payload)
+        toast('Event updated', 'success')
+        editingEventId = null
+      } else {
+        await createSchoolEvent(schoolId, payload)
+        toast('Event added', 'success')
+      }
       events = await getSchoolEvents(schoolId)
+      await loadMonthEvents()
       renderEventsTab(container)
     } catch (err) { toast('Failed: ' + err.message, 'error') }
   })
+
+  // Edit buttons
+  container.querySelectorAll('.edit-event').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editingEventId = btn.dataset.id
+      renderEventsTab(container)
+    })
+  })
+
+  // Delete buttons
+  container.querySelectorAll('.delete-event').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this event?')) return
+      try {
+        await deleteSchoolEvent(schoolId, btn.dataset.id)
+        toast('Event deleted', 'success')
+        events = await getSchoolEvents(schoolId)
+        await loadMonthEvents()
+        renderEventsTab(container)
+      } catch (err) { toast('Failed: ' + err.message, 'error') }
+    })
+  })
 }
+
 
 function renderPlaceholder(container, title, message) {
   container.innerHTML = `

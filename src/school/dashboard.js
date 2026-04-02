@@ -13,7 +13,8 @@ import { createUserDoc } from '../firebase/firestore.js'
 import {
   createClass, getClasses, createSection, getSections,
   getSchoolUsers, getPositions, createPosition,
-  getAllStudents,
+  getAllStudents, getBranches, getAggregatedStats,
+  getBranchEvents, getBranchFeesSummary,
 } from '../firebase/schools.js'
 import { ROLES, ADMIN_SUB_ROLES, HIERARCHY_LEVELS } from '../shared/constants.js'
 import {
@@ -37,11 +38,22 @@ if (!schoolId) {
   throw new Error('No schoolId on user doc')
 }
 
+// ── Head Office Detection ──────────────────────────────────────────────
+const isHeadOffice = school?.branches?.length > 0 || false
+let branchSchools = []
+if (isHeadOffice) {
+  branchSchools = await getBranches(schoolId)
+}
+
 // ── Header ──────────────────────────────────────────────────────────────
 const displayName = user.displayName || user.email.split('@')[0]
 document.getElementById('user-name').textContent = displayName
 document.getElementById('welcome-name').textContent = displayName
 document.getElementById('role-badge').textContent = role === 'school_admin' ? 'Admin' : 'Super Admin'
+if (isHeadOffice) {
+  const badge = document.getElementById('role-badge')
+  badge.insertAdjacentHTML('afterend', ' <span class="dash-nav-badge" style="font-size:11px;background:#7c3aed;color:#fff;margin-left:6px;">Head Office</span>')
+}
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await logout()
   window.location.replace('/login.html')
@@ -49,6 +61,37 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 
 // ── Tabs ────────────────────────────────────────────────────────────────
 initTabs()
+
+// ── HO Overview Tab (injected dynamically if Head Office) ──────────────
+if (isHeadOffice) {
+  // Add tab button at the beginning
+  const tabsContainer = document.querySelector('.dash-tabs')
+  const hoTabBtn = document.createElement('button')
+  hoTabBtn.className = 'dash-tab'
+  hoTabBtn.setAttribute('data-tab', 'ho-overview')
+  hoTabBtn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    HO Overview
+  `
+  tabsContainer.insertBefore(hoTabBtn, tabsContainer.firstChild)
+
+  // Add tab content panel
+  const firstTabContent = document.querySelector('.dash-tab-content')
+  const hoPanel = document.createElement('div')
+  hoPanel.className = 'dash-tab-content'
+  hoPanel.id = 'tab-ho-overview'
+  hoPanel.innerHTML = '<div class="dash-section"><div id="ho-overview-content"><p style="color:var(--text-muted);">Loading Head Office data...</p></div></div>'
+  firstTabContent.parentNode.insertBefore(hoPanel, firstTabContent)
+
+  // Re-initialize tabs so the new tab is wired up
+  initTabs()
+
+  // Make HO Overview the default active tab
+  document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'))
+  document.querySelectorAll('.dash-tab-content').forEach(t => t.classList.remove('active'))
+  hoTabBtn.classList.add('active')
+  hoPanel.classList.add('active')
+}
 
 // ── State ───────────────────────────────────────────────────────────────
 let classes = []
@@ -555,7 +598,191 @@ function renderHierarchyTree() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//   HEAD OFFICE OVERVIEW
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadHOOverview() {
+  if (!isHeadOffice || branchSchools.length === 0) return
+  const container = document.getElementById('ho-overview-content')
+  if (!container) return
+
+  container.innerHTML = '<p style="color:var(--text-muted);">Loading branch data...</p>'
+
+  try {
+    const branchIds = branchSchools.map(b => b.id)
+    const [stats, events, feesSummary] = await Promise.all([
+      getAggregatedStats(branchIds),
+      getBranchEvents(branchIds),
+      getBranchFeesSummary(branchIds),
+    ])
+
+    // Build a name lookup
+    const branchName = {}
+    for (const b of branchSchools) branchName[b.id] = b.name || b.id
+
+    // Aggregate totals
+    const totalStudents = stats.reduce((s, b) => s + b.studentCount, 0)
+    const totalStaff = stats.reduce((s, b) => s + b.staffCount, 0)
+    const totalClasses = stats.reduce((s, b) => s + b.classCount, 0)
+    const totalSections = stats.reduce((s, b) => s + b.sectionCount, 0)
+
+    // Update the top stat cards with aggregated totals
+    document.getElementById('stat-classes').textContent = `${classes.length} / ${totalClasses}`
+    document.getElementById('stat-sections').textContent = `${sections.length} / ${totalSections}`
+    const staffRoles = ['super_admin', 'school_admin', 'admin', 'line_manager', 'teacher']
+    const localStaff = users.filter(u => staffRoles.includes(u.role)).length
+    document.getElementById('stat-staff').textContent = `${localStaff} / ${totalStaff}`
+    document.getElementById('stat-students').textContent = `${students.length} / ${totalStudents}`
+
+    // Update stat labels to clarify HO / total
+    document.querySelectorAll('.stat-card .stat-label').forEach(el => {
+      if (el.textContent === 'defined') el.textContent = 'HO / all branches'
+      if (el.textContent === 'total') el.textContent = 'HO / all branches'
+      if (el.textContent === 'users') el.textContent = 'HO / all branches'
+      if (el.textContent === 'enrolled') el.textContent = 'HO / all branches'
+    })
+
+    // ── Stats Cards ──
+    let html = `
+      <div class="dash-stats" style="margin-bottom:28px;">
+        <div class="stat-card">
+          <h3>Branches</h3>
+          <p class="stat-number">${branchSchools.length}</p>
+          <p class="stat-label">connected</p>
+        </div>
+        <div class="stat-card">
+          <h3>Total Students</h3>
+          <p class="stat-number">${totalStudents}</p>
+          <p class="stat-label">across all branches</p>
+        </div>
+        <div class="stat-card">
+          <h3>Total Staff</h3>
+          <p class="stat-number">${totalStaff}</p>
+          <p class="stat-label">across all branches</p>
+        </div>
+        <div class="stat-card">
+          <h3>Total Classes</h3>
+          <p class="stat-number">${totalClasses}</p>
+          <p class="stat-label">across all branches</p>
+        </div>
+      </div>
+    `
+
+    // ── Branch Comparison Table ──
+    html += `
+      <div class="dash-section" style="margin-bottom:28px;">
+        <div class="dash-section-header"><h2>Branch Comparison</h2></div>
+        <table class="dash-table">
+          <thead>
+            <tr>
+              <th>Branch</th>
+              <th>Students</th>
+              <th>Staff</th>
+              <th>Teachers</th>
+              <th>Sections</th>
+              <th>Classes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stats.map(s => `
+              <tr>
+                <td><strong>${esc(branchName[s.schoolId])}</strong></td>
+                <td>${s.studentCount}</td>
+                <td>${s.staffCount}</td>
+                <td>${s.teacherCount}</td>
+                <td>${s.sectionCount}</td>
+                <td>${s.classCount}</td>
+              </tr>
+            `).join('')}
+            <tr style="font-weight:600;border-top:2px solid var(--gray-200, #e2e8f0);">
+              <td>Total</td>
+              <td>${totalStudents}</td>
+              <td>${totalStaff}</td>
+              <td>${stats.reduce((s, b) => s + b.teacherCount, 0)}</td>
+              <td>${totalSections}</td>
+              <td>${totalClasses}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `
+
+    // ── Upcoming Events ──
+    const upcomingEvents = events.slice(0, 20)
+    html += `
+      <div class="dash-section" style="margin-bottom:28px;">
+        <div class="dash-section-header"><h2>Upcoming Events Across Branches</h2></div>
+        ${upcomingEvents.length === 0
+          ? '<p style="color:var(--text-muted);">No upcoming events found.</p>'
+          : `<table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Event</th>
+                  <th>Branch</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${upcomingEvents.map(e => `
+                  <tr>
+                    <td>${formatDate(e.date)}</td>
+                    <td>${esc(e.title || e.name || '—')}</td>
+                    <td>${esc(branchName[e.schoolId] || e.schoolId)}</td>
+                    <td>${esc(e.type || '—')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`
+        }
+      </div>
+    `
+
+    // ── Fee Summary ──
+    const totalDueAll = feesSummary.reduce((s, f) => s + f.totalDue, 0)
+    const totalPaidAll = feesSummary.reduce((s, f) => s + f.totalPaid, 0)
+    html += `
+      <div class="dash-section">
+        <div class="dash-section-header"><h2>Fee Summary Across Branches</h2></div>
+        <table class="dash-table">
+          <thead>
+            <tr>
+              <th>Branch</th>
+              <th>Outstanding Fees</th>
+              <th>Total Due</th>
+              <th>Total Collected</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${feesSummary.map(f => `
+              <tr>
+                <td><strong>${esc(branchName[f.schoolId])}</strong></td>
+                <td>${f.outstandingCount}</td>
+                <td>${f.totalDue.toLocaleString()}</td>
+                <td>${f.totalPaid.toLocaleString()}</td>
+              </tr>
+            `).join('')}
+            <tr style="font-weight:600;border-top:2px solid var(--gray-200, #e2e8f0);">
+              <td>Total</td>
+              <td>${feesSummary.reduce((s, f) => s + f.outstandingCount, 0)}</td>
+              <td>${totalDueAll.toLocaleString()}</td>
+              <td>${totalPaidAll.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `
+
+    container.innerHTML = html
+  } catch (err) {
+    console.error('Failed to load HO overview:', err)
+    container.innerHTML = '<p style="color:var(--danger, red);">Failed to load Head Office overview data.</p>'
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //   INIT
 // ═══════════════════════════════════════════════════════════════════════════
 
 await loadAll()
+if (isHeadOffice) await loadHOOverview()

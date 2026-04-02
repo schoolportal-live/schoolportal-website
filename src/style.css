@@ -1800,3 +1800,30 @@ h1, h2, h3 {
     min-width: 80px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Event Calendar
+   ═══════════════════════════════════════════════════════════════════════════ */
+.event-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--gray-200); border-radius: var(--radius-sm); overflow: hidden; }
+.event-cal-header { background: var(--brand-primary); color: #fff; padding: 8px 4px; text-align: center; font-size: 12px; font-weight: 600; }
+.event-cal-day { background: #fff; min-height: 80px; padding: 4px 6px; cursor: pointer; transition: background 0.15s; }
+.event-cal-day:hover { background: var(--brand-primary-light, #e0edff); }
+.event-cal-day.today { background: var(--blue-50, #eff6ff); border: 2px solid var(--brand-primary); }
+.event-cal-day.selected { background: var(--brand-primary-light, #dbeafe); }
+.event-cal-day.other-month { opacity: 0.4; cursor: default; }
+.event-cal-day .day-num { font-size: 13px; font-weight: 600; color: var(--gray-700); }
+.event-cal-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin: 1px; }
+.event-cal-dot.academic { background: var(--blue, #3b82f6); }
+.event-cal-dot.exam { background: var(--red, #ef4444); }
+.event-cal-dot.holiday { background: var(--green, #22c55e); }
+.event-cal-dot.sports { background: var(--brand-accent, #f59e0b); }
+.event-cal-dot.cultural { background: #8b5cf6; }
+.event-cal-dot.meeting { background: var(--gray-600, #4b5563); }
+.event-cal-dot.requisition { background: #f97316; }
+.event-cal-dot.general { background: var(--gray-400, #9ca3af); }
+
+@media (max-width: 600px) {
+  .event-cal-day { min-height: 48px; padding: 2px 3px; }
+  .event-cal-header { padding: 4px 2px; font-size: 10px; }
+  .event-cal-day .day-num { font-size: 11px; }
+}

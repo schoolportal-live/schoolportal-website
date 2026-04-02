@@ -1046,6 +1046,48 @@ export async function getAllRequisitions(schoolId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
+// ── Paper Requisitions ─────────────────────────────────────────────────
+export async function createPaperRequisition(schoolId, data) {
+  const ref = await addDoc(schoolCol(schoolId, 'paperRequisitions'), {
+    teacherId: data.teacherId,
+    teacherName: data.teacherName,
+    sectionId: data.sectionId,
+    sectionName: data.sectionName || '',
+    examName: data.examName || '',
+    examType: data.examType || '',
+    subjects: data.subjects || [],
+    studentCount: data.studentCount || 0,
+    pagesPerStudent: data.pagesPerStudent || 4,
+    calculations: data.calculations || [],  // [{subject, students, pages, total}]
+    totalSheets: data.totalSheets || 0,
+    adjustedSheets: data.adjustedSheets || 0,  // after teacher override
+    notes: data.notes || '',
+    status: 'submitted',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+export async function getPaperRequisitions(schoolId) {
+  const q = query(schoolCol(schoolId, 'paperRequisitions'), orderBy('createdAt', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+export async function getPaperRequisitionsByTeacher(schoolId, teacherId) {
+  const q = query(schoolCol(schoolId, 'paperRequisitions'), where('teacherId', '==', teacherId), orderBy('createdAt', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+export async function approvePaperRequisition(schoolId, reqId, status) {
+  await updateDoc(schoolDoc(schoolId, 'paperRequisitions', reqId), {
+    status,
+    updatedAt: serverTimestamp(),
+  })
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //   EVENTS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1055,8 +1097,15 @@ export async function createSchoolEvent(schoolId, data) {
     title: data.title, description: data.description || '',
     date: data.date, time: data.time || '',
     location: data.location || '', eventType: data.eventType || 'general',
+    category: data.category || data.eventType || 'general',
+    isRecurring: data.isRecurring || false,
+    reminderDays: data.reminderDays ?? 7,
+    targetAudience: data.targetAudience || 'all',
+    linkedRequisitionId: data.linkedRequisitionId || null,
     requiresRequisition: data.requiresRequisition || false,
     requiresApproval: data.requiresApproval || false,
+    approvalRequired: data.approvalRequired || data.requiresApproval || false,
+    approvalStatus: data.approvalRequired || data.requiresApproval ? 'pending' : null,
     createdAt: serverTimestamp(),
   })
   return ref.id
@@ -1064,6 +1113,44 @@ export async function createSchoolEvent(schoolId, data) {
 
 export async function getSchoolEvents(schoolId, maxResults = 100) {
   const q = query(schoolCol(schoolId, 'events'), orderBy('date', 'asc'), limit(maxResults))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+export async function updateSchoolEvent(schoolId, eventId, fields) {
+  await updateDoc(schoolDoc(schoolId, 'events', eventId), {
+    ...fields,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteSchoolEvent(schoolId, eventId) {
+  await deleteDoc(schoolDoc(schoolId, 'events', eventId))
+}
+
+export async function getUpcomingEvents(schoolId, daysAhead = 30) {
+  const today = new Date().toISOString().split('T')[0]
+  const futureDate = new Date(Date.now() + daysAhead * 86400000).toISOString().split('T')[0]
+  const q = query(
+    schoolCol(schoolId, 'events'),
+    where('date', '>=', today),
+    where('date', '<=', futureDate),
+    orderBy('date', 'asc')
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+export async function getEventsByMonth(schoolId, yearMonth) {
+  const startDate = yearMonth + '-01'
+  const [y, m] = yearMonth.split('-').map(Number)
+  const endDate = yearMonth + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0')
+  const q = query(
+    schoolCol(schoolId, 'events'),
+    where('date', '>=', startDate),
+    where('date', '<=', endDate),
+    orderBy('date', 'asc')
+  )
   const snap = await getDocs(q)
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
@@ -1205,4 +1292,69 @@ export async function getLibraryTransactions(schoolId, maxResults = 100) {
   const q = query(collection(db, 'schools', schoolId, 'library', 'transactions', 'items'), orderBy('createdAt', 'desc'), limit(maxResults))
   const snap = await getDocs(q)
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   HEAD OFFICE AGGREGATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Fetch aggregated stats for all branch schools.
+ * Returns per-branch counts of students, staff, teachers, sections, classes, parents.
+ */
+export async function getAggregatedStats(branchSchoolIds) {
+  const results = await Promise.all(branchSchoolIds.map(async (schoolId) => {
+    const [students, users, sections, classes] = await Promise.all([
+      getAllStudents(schoolId).catch(() => []),
+      getSchoolUsers(schoolId).catch(() => []),
+      getSections(schoolId).catch(() => []),
+      getClasses(schoolId).catch(() => []),
+    ])
+    return {
+      schoolId,
+      studentCount: students.length,
+      staffCount: users.filter(u => ['super_admin', 'admin', 'teacher', 'line_manager'].includes(u.role)).length,
+      teacherCount: users.filter(u => u.role === 'teacher').length,
+      sectionCount: sections.length,
+      classCount: classes.length,
+      parentCount: users.filter(u => u.role === 'parent').length,
+    }
+  }))
+  return results
+}
+
+/**
+ * Fetch upcoming events across all branch schools.
+ */
+export async function getBranchEvents(branchSchoolIds, daysAhead = 30) {
+  const today = new Date().toISOString().split('T')[0]
+  const allEvents = []
+  for (const schoolId of branchSchoolIds) {
+    try {
+      const events = await getSchoolEvents(schoolId, 20)
+      events.forEach(e => { e.schoolId = schoolId })
+      allEvents.push(...events)
+    } catch { /* skip branch on error */ }
+  }
+  return allEvents
+    .filter(e => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 50)
+}
+
+/**
+ * Fetch fees summary across all branch schools.
+ */
+export async function getBranchFeesSummary(branchSchoolIds) {
+  const results = await Promise.all(branchSchoolIds.map(async (schoolId) => {
+    try {
+      const outstanding = await getOutstandingFees(schoolId)
+      const totalDue = outstanding.reduce((sum, f) => sum + (f.amountDue || 0), 0)
+      const totalPaid = outstanding.reduce((sum, f) => sum + (f.amountPaid || 0), 0)
+      return { schoolId, outstandingCount: outstanding.length, totalDue, totalPaid }
+    } catch {
+      return { schoolId, outstandingCount: 0, totalDue: 0, totalPaid: 0 }
+    }
+  }))
+  return results
 }

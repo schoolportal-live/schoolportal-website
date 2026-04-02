@@ -178,6 +178,14 @@
       ]
     },
     {
+      "collectionGroup": "paperRequisitions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "teacherId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "students",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

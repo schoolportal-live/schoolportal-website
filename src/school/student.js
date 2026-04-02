@@ -23,6 +23,7 @@ import {
   getTransportRoutes,
   getLibraryTransactions,
   getNotifications, getUnreadNotificationCount, markNotificationRead,
+  getUpcomingEvents,
 } from '../firebase/schools.js'
 import { MODULES, HOMEWORK_STATUSES, ATTENDANCE_STATUSES } from '../shared/constants.js'
 import { esc, formatDate, timeAgo, toast, statusBadge } from '../shared/components.js'
@@ -73,6 +74,7 @@ const ALL_TABS = [
   { id: 'fees', label: 'Fees', module: MODULES.FEES },
   { id: 'transport', label: 'Transport', module: MODULES.TRANSPORT },
   { id: 'library', label: 'Library', module: MODULES.LIBRARY },
+  { id: 'events', label: 'Events', module: MODULES.EVENTS },
   { id: 'notifications', label: 'Notifications', alwaysOn: true },
 ]
 
@@ -184,6 +186,7 @@ function renderActiveTab() {
     fees: renderFees,
     transport: renderTransport,
     library: renderLibrary,
+    events: renderEvents,
     notifications: renderNotifications,
   }
   const renderer = renderers[currentTab]
@@ -400,6 +403,34 @@ function renderNotifications(el) {
     } catch (err) {
       toast('Failed to mark as read', 'error')
     }
+  })
+}
+
+// ── Events Tab ────────────────────────────────────────────────────────
+function renderEvents(el) {
+  el.innerHTML = '<div class="dash-card"><p class="dash-empty">Loading events...</p></div>'
+  getUpcomingEvents(schoolId, 60).then(upcoming => {
+    if (upcoming.length === 0) {
+      el.innerHTML = '<div class="dash-card"><p class="dash-empty">No upcoming events.</p></div>'
+      return
+    }
+    const rows = upcoming.map(e => {
+      const cat = e.category || e.eventType || 'general'
+      return `<tr>
+        <td><span class="event-cal-dot ${esc(cat)}"></span> ${esc(e.title)}</td>
+        <td>${formatDate(e.date)}</td>
+        <td>${esc(e.time || '—')}</td>
+        <td>${esc(cat)}</td>
+        <td>${esc(e.description || '—')}</td>
+      </tr>`
+    }).join('')
+    el.innerHTML = `<div class="dash-card">
+      <h3 style="margin-bottom:12px;">Upcoming Events</h3>
+      <table class="dash-table"><thead><tr><th>Event</th><th>Date</th><th>Time</th><th>Category</th><th>Details</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`
+  }).catch(() => {
+    el.innerHTML = '<div class="dash-card"><p class="dash-empty">Could not load events.</p></div>'
   })
 }
 
