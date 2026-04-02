@@ -21,6 +21,7 @@ import { getSchool } from './schools.js'
 import { ROLES, ROLE_ROUTES } from '../shared/constants.js'
 import { applyBranding } from '../shared/branding.js'
 import { registerServiceWorker } from '../shared/pwa.js'
+import { isNative, setStatusBarColor, setupBackButton } from '../shared/native.js'
 
 // Register PWA service worker on every guarded page
 registerServiceWorker()
@@ -106,6 +107,13 @@ export async function initGuard({
     } catch (err) {
       console.warn('Failed to load school branding:', err)
     }
+  }
+
+  // ── Native app setup (Capacitor) ───────────────────────────────
+  if (isNative()) {
+    setupBackButton()
+    const primaryColor = school?.branding?.primaryColor || '#2563eb'
+    setStatusBarColor(primaryColor)
   }
 
   // ── All checks passed — reveal the page ────────────────────────

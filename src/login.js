@@ -8,6 +8,7 @@ import { getUserRole, ROLE_ROUTES } from './firebase/firestore.js'
 import { initGuard } from './firebase/guard.js'
 import { getSchool } from './firebase/schools.js'
 import { applyBranding } from './shared/branding.js'
+import { isNative, isBiometricAvailable, authenticateWithBiometric } from './shared/native.js'
 
 // ── Auth Guard: if already logged in, redirect to dashboard ───────────────
 // We await the guard so Firebase is fully initialized before loading branding
@@ -184,6 +185,14 @@ if (form && submitBtn) {
       // 3. Redirect to the correct dashboard
       const destination = ROLE_ROUTES[role]
       if (destination) {
+        // Save credentials for biometric quick-login (native app only)
+        if (isNative()) {
+          try {
+            localStorage.setItem('schoolos_last_email', email)
+            localStorage.setItem('schoolos_last_pass', btoa(password))
+            localStorage.setItem('schoolos_biometric_enabled', 'true')
+          } catch { /* silent */ }
+        }
         window.location.replace(destination)
       } else {
         // User has no role doc — likely a new account not set up yet
@@ -198,3 +207,45 @@ if (form && submitBtn) {
     }
   })
 }
+
+// ── Biometric Quick Login (native app only) ───────────────────────────────
+async function setupBiometricLogin() {
+  if (!isNative()) return
+  const savedEmail = localStorage.getItem('schoolos_last_email')
+  const biometricEnabled = localStorage.getItem('schoolos_biometric_enabled') === 'true'
+  if (!savedEmail || !biometricEnabled) return
+
+  const available = await isBiometricAvailable()
+  if (!available) return
+
+  // Show biometric button
+  const biometricBtn = document.createElement('button')
+  biometricBtn.type = 'button'
+  biometricBtn.className = 'btn btn-secondary btn-full btn-lg'
+  biometricBtn.style.marginTop = '12px'
+  biometricBtn.innerHTML = '&#128274; Unlock with Fingerprint'
+  biometricBtn.addEventListener('click', async () => {
+    const authenticated = await authenticateWithBiometric('Sign in to SchoolOS')
+    if (!authenticated) return
+
+    const savedPass = localStorage.getItem('schoolos_last_pass')
+    if (!savedEmail || !savedPass) return
+
+    setLoading(true)
+    try {
+      const { user } = await loginWithEmail(savedEmail, atob(savedPass))
+      const role = await getUserRole(user.uid)
+      const destination = ROLE_ROUTES[role]
+      if (destination) window.location.replace(destination)
+      else setLoading(false)
+    } catch (err) {
+      showAuthError(err.code || 'unknown')
+      setLoading(false)
+    }
+  })
+
+  // Insert after the sign-in button
+  submitBtn?.parentElement?.appendChild(biometricBtn)
+}
+
+guardResult.then(() => setupBiometricLogin())

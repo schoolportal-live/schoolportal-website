@@ -12,7 +12,8 @@
       "WebFetch(domain:schoolportal-live.netlify.app)",
       "Bash(nslookup schoolportal.live 8.8.8.8)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
